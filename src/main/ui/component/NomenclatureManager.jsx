@@ -30,7 +30,6 @@ const NomenclatureManager = () => {
     useEffect(() => {
         getNomenclatures();
     }, []);
-
     return (
         <div style={{ padding: '1rem' }}>
             <h2>Номенклатура ТМЦ</h2>
