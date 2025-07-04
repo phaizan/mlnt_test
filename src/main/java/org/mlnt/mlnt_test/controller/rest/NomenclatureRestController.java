@@ -2,6 +2,7 @@ package org.mlnt.mlnt_test.controller.rest;
 
 
 import lombok.RequiredArgsConstructor;
+import org.mlnt.mlnt_test.Response;
 import org.mlnt.mlnt_test.entity.Nomenclature;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,9 +21,10 @@ public class NomenclatureRestController {
     private final JdbcTemplate jdbcTemplate;
 
     @GetMapping
-    public List<Nomenclature> getAllNomenclatures() {
+    public Response<Nomenclature> getAllNomenclatures() {
         String sql = "select * from rubr_equipment_nomenclatures";
-        return jdbcTemplate.query(sql, nomenclatureRowMapper());
+        List<Nomenclature> list = jdbcTemplate.query(sql, nomenclatureRowMapper());
+        return new Response<>("Данные успешно загружены", list);
     }
     @PostMapping
     public ResponseEntity<String> addNomenclature(@RequestBody Nomenclature nomenclature) {

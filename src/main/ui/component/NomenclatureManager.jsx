@@ -9,7 +9,8 @@ const NomenclatureManager = () => {
     const getNomenclatures = async () => {
         try {
             const response = await axios.get('http://localhost:8080/api/nomenclature');
-            setNomenclatures(response.data);
+            setNomenclatures(response.data.data);
+            setMessage(response.data.response);
         } catch (error) {
             console.error('Ошибка при загрузке номенклатур', error);
         }
@@ -30,7 +31,6 @@ const NomenclatureManager = () => {
     useEffect(() => {
         getNomenclatures();
     }, []);
-
     return (
         <div style={{ padding: '1rem' }}>
             <h2>Номенклатура ТМЦ</h2>
