@@ -10,7 +10,12 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-// TODO поменять rowMapper
+
+// TODO раскидать код по папкам правильно
+// TODO переписать get (?)
+// TODO переписать put
+// TODO переписать delete
+// TODO просмотреть код ещё раз и реакт
 
 @RestController
 @RequestMapping("/api/equipment")
@@ -23,7 +28,7 @@ public class EquipmentRestController {
     @GetMapping
     public List<Equipment> getEquipment() {
         String sql = """
-                SELECT ren.name, oe.amount FROM obj_equipments oe
+                SELECT oe.id, ren.name, oe.amount FROM obj_equipments oe
                 
                 JOIN obj_metadata om ON om.id=oe.id
                 JOIN bnd_object_rubricator bor ON om.id = bor.object_id
@@ -35,41 +40,69 @@ public class EquipmentRestController {
     }
 
     @PostMapping
-    public ResponseEntity<String> addEquipment(@RequestBody Equipment equipmentToAdd) {
-        Integer nomenclatureId = getIdFromNomenclature(equipmentToAdd.getName());
+    public ResponseEntity<?> addEquipment(@RequestBody Equipment equipmentToAdd) {
+        Integer nomenclatureId = getNomenclatureIdFromRubr(equipmentToAdd.getName());
         if(nomenclatureId == null) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(equipmentToAdd.getName()
-                                                                   + " не существует в списке номенклатур");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Номенклатура с названием " + equipmentToAdd.getName() + " не найдена");
         }
-        Equipment equipment = getEquipmentFromStorage(nomenclatureId);
-        if (equipment == null) {
-            String sqlInsertMeta = "INSERT INTO obj_metadata (obj_type_id) VALUES (2) RETURNING id";
-            Integer objectId = jdbcTemplate.queryForObject(sqlInsertMeta, Integer.class);
-            String sqlInsertEquip = "INSERT INTO obj_equipments (id, amount) VALUES (?, ?)";
-            jdbcTemplate.update(sqlInsertEquip, objectId, equipmentToAdd.getAmount());
-            String sqlInsertBnd = """
-                                    INSERT INTO bnd_object_rubricator (object_id, rubr_id, rubr_list_id, type_id)
-                                    VALUES (?, ?, 2, 2)""";
-            jdbcTemplate.update(sqlInsertBnd, objectId, nomenclatureId);
-            return ResponseEntity.status(HttpStatus.CREATED).body(equipmentToAdd.getName() + " добавлено");
+        if (getEquipmentFromStorage(nomenclatureId) != null) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("Номенклатура с названием " + equipmentToAdd.getName() +  " уже существует");
         }
-        else
-        {
-            String sql = "UPDATE obj_equipments SET amount = ? WHERE id = ?";
-            jdbcTemplate.update(sql, equipmentToAdd.getAmount() + equipment.getAmount(), equipment.getId());
+
+        String sqlInsertMeta = "INSERT INTO obj_metadata (obj_type_id) VALUES (2) RETURNING id";
+        Integer objectId = jdbcTemplate.queryForObject(sqlInsertMeta, Integer.class);
+
+        equipmentToAdd.setId(objectId);
+
+        String sqlInsertEquip = "INSERT INTO obj_equipments (id, amount) VALUES (?, ?)";
+        jdbcTemplate.update(sqlInsertEquip, equipmentToAdd.getId(), equipmentToAdd.getAmount());
+        String sqlInsertBnd = """
+                                INSERT INTO bnd_object_rubricator (object_id, rubr_id, rubr_list_id, type_id)
+                                VALUES (?, ?, 2, 2)""";
+        jdbcTemplate.update(sqlInsertBnd, equipmentToAdd.getId(), nomenclatureId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(equipmentToAdd);
+    }
+
+
+    @PutMapping("/{id}")
+    public ResponseEntity<String> updateEquipment(@RequestBody Equipment equipmentToUpdate, @PathVariable Integer id) {
+        String sql = "UPDATE obj_equipments SET amount = ? WHERE id = ?";
+        try {
+            int updated = jdbcTemplate.update(sql, equipmentToUpdate.getAmount(), id);
+            if (updated > 0) {
+                return ResponseEntity.ok("Количество оборудования обновлено");
+            }
+            else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Не найдено оборудование с id " + id);
+            }
         }
-        return ResponseEntity.ok("Оборудование добавлено");
+        catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Ошибка обновления: " + e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<String> deleteEquipment(@PathVariable Integer id) {
+        String sql = "DELETE FROM obj_equipments WHERE id = ?";
+        int deleted = jdbcTemplate.update(sql, id);
+        if (deleted > 0) {
+            return ResponseEntity.ok("Оборудование удалено");
+        }
+        else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Не найдено оборудование с id " + id);
+        }
     }
 
     private RowMapper<Equipment> equipmentRowMapper() {
         return (rs, rowNum) -> new Equipment()
-                .setId(rowNum) //TODO исправить это
+                .setId(rs.getInt("id"))
                 .setName(rs.getString("name"))
                 .setAmount(rs.getInt("amount"));
 
     }
 
-    private Integer getIdFromNomenclature(String name) {
+    private Integer getNomenclatureIdFromRubr(String name) {
         String sql = """
                 SELECT ren.id
                 FROM rubr_equipment_nomenclatures ren
