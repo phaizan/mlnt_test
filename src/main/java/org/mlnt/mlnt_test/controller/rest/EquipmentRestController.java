@@ -1,142 +1,114 @@
 package org.mlnt.mlnt_test.controller.rest;
 
 import lombok.RequiredArgsConstructor;
+import org.mlnt.mlnt_test.api.EquipmentApi;
 import org.mlnt.mlnt_test.entity.Equipment;
-import org.springframework.dao.EmptyResultDataAccessException;
+import org.mlnt.mlnt_test.entity.Nomenclature;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-
-// TODO раскидать код по папкам правильно
-// TODO переписать get (?)
-// TODO переписать put
-// TODO переписать delete
-// TODO просмотреть код ещё раз и реакт
+import java.util.NoSuchElementException;
 
 @RestController
-@RequestMapping("/api/equipment")
+@RequestMapping("/api")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "http://localhost:3000")
 public class EquipmentRestController {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final EquipmentApi equipmentApi;
 
-    @GetMapping
-    public List<Equipment> getEquipment() {
-        String sql = """
-                SELECT oe.id, ren.name, oe.amount FROM obj_equipments oe
-                
-                JOIN obj_metadata om ON om.id=oe.id
-                JOIN bnd_object_rubricator bor ON om.id = bor.object_id
-                JOIN bnd_object_rubricator_type bort ON bor.type_id = bort.id
-                JOIN rubr_equipment_nomenclatures ren ON ren.id = bor.rubr_id
-                
-                WHERE bort.name = 'Номенклатура ТМЦ'""";
-        return jdbcTemplate.query(sql, equipmentRowMapper());
+    @GetMapping("/equipment")
+    public ResponseEntity<?> getEquipment() {
+        return ResponseEntity.ok(equipmentApi.getEquipment());
     }
 
-    @PostMapping
-    public ResponseEntity<?> addEquipment(@RequestBody Equipment equipmentToAdd) {
-        Integer nomenclatureId = getNomenclatureIdFromRubr(equipmentToAdd.getName());
-        if(nomenclatureId == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body("Номенклатура с названием " + equipmentToAdd.getName() + " не найдена");
-        }
-        if (getEquipmentFromStorage(nomenclatureId) != null) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body("Номенклатура с названием " + equipmentToAdd.getName() +  " уже существует");
-        }
-
-        String sqlInsertMeta = "INSERT INTO obj_metadata (obj_type_id) VALUES (2) RETURNING id";
-        Integer objectId = jdbcTemplate.queryForObject(sqlInsertMeta, Integer.class);
-
-        equipmentToAdd.setId(objectId);
-
-        String sqlInsertEquip = "INSERT INTO obj_equipments (id, amount) VALUES (?, ?)";
-        jdbcTemplate.update(sqlInsertEquip, equipmentToAdd.getId(), equipmentToAdd.getAmount());
-        String sqlInsertBnd = """
-                                INSERT INTO bnd_object_rubricator (object_id, rubr_id, rubr_list_id, type_id)
-                                VALUES (?, ?, 2, 2)""";
-        jdbcTemplate.update(sqlInsertBnd, equipmentToAdd.getId(), nomenclatureId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(equipmentToAdd);
-    }
-
-
-    @PutMapping("/{id}")
-    public ResponseEntity<String> updateEquipment(@RequestBody Equipment equipmentToUpdate, @PathVariable Integer id) {
-        String sql = "UPDATE obj_equipments SET amount = ? WHERE id = ?";
+    @PostMapping("/equipment")
+    public ResponseEntity<?> addEquipment(@RequestBody Equipment equipment) {
         try {
-            int updated = jdbcTemplate.update(sql, equipmentToUpdate.getAmount(), id);
-            if (updated > 0) {
-                return ResponseEntity.ok("Количество оборудования обновлено");
-            }
-            else {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Не найдено оборудование с id " + id);
-            }
+            Equipment added = equipmentApi.addEquipment(equipment);
+            return ResponseEntity.status(HttpStatus.CREATED).body(added);
+        }
+        catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+        catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+        }
+    }
+
+    @PutMapping("/equipment/{id}")
+    public ResponseEntity<?> updateEquipment(@RequestBody Equipment equipment, @PathVariable Integer id) {
+        try {
+            Equipment updated = equipmentApi.updateEquipment(equipment, id);
+            return ResponseEntity.status(HttpStatus.OK).body(updated);
+        }
+        catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }
         catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Ошибка обновления: " + e.getMessage());
         }
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/equipment/{id}")
     public ResponseEntity<String> deleteEquipment(@PathVariable Integer id) {
-        String sql = "DELETE FROM obj_equipments WHERE id = ?";
-        int deleted = jdbcTemplate.update(sql, id);
-        if (deleted > 0) {
-            return ResponseEntity.ok("Оборудование удалено");
+        try {
+            equipmentApi.deleteEquipment(id);
+            return ResponseEntity.ok().build();
         }
-        else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Не найдено оборудование с id " + id);
+        catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         }
-    }
-
-    private RowMapper<Equipment> equipmentRowMapper() {
-        return (rs, rowNum) -> new Equipment()
-                .setId(rs.getInt("id"))
-                .setName(rs.getString("name"))
-                .setAmount(rs.getInt("amount"));
-
-    }
-
-    private Integer getNomenclatureIdFromRubr(String name) {
-        String sql = """
-                SELECT ren.id
-                FROM rubr_equipment_nomenclatures ren
-                WHERE ren.name = ?""";
-        try
-        {
-            return jdbcTemplate.queryForObject(sql, Integer.class, name);
-        }
-        catch (EmptyResultDataAccessException e)
-        {
-            return null;
+        catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Ошибка при удалении: " + e.getMessage());
         }
     }
 
-    private Equipment getEquipmentFromStorage(int nomenclatureId) {
-        String sql = """
-                SELECT oe.id, oe.amount
-                FROM obj_equipments oe
-                
-                JOIN obj_metadata om ON om.id = oe.id
-                JOIN bnd_object_rubricator bor ON om.id = bor.object_id
-                JOIN bnd_object_rubricator_type bort ON bor.type_id = bort.id
-                JOIN rubr_equipment_nomenclatures ren ON ren.id = bor.rubr_id
-                
-                WHERE ren.id = ? AND bort.name = 'Номенклатура ТМЦ';""";
-        try
-        {
-            return jdbcTemplate.queryForObject(sql, (rs, rowNum) -> new Equipment()
-                    .setId(rs.getInt("id"))
-                    .setAmount(rs.getInt("amount")), nomenclatureId);
+    @GetMapping("/nomenclature")
+    public ResponseEntity<?> getNomenclatures() {
+        return ResponseEntity.ok(equipmentApi.getNomenclatures());
+    }
+
+    @PostMapping("/nomenclature")
+    public ResponseEntity<?> addNomenclature(@RequestBody Nomenclature nomenclature) {
+        try {
+            Nomenclature added = equipmentApi.addNomenclature(nomenclature);
+            return ResponseEntity.status(HttpStatus.CREATED).body(added);
         }
-        catch (EmptyResultDataAccessException e)
-        {
-            return null;
+        catch (DuplicateKeyException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("Оборудование уже существует");
+        }
+    }
+
+    @PutMapping("/nomenclature/{id}")
+    public ResponseEntity<?> updateNomenclature(@RequestBody Nomenclature nomenclature, @PathVariable Integer id) {
+        try {
+            Nomenclature updated = equipmentApi.updateNomenclature(nomenclature, id);
+            return ResponseEntity.status(HttpStatus.OK).body(updated);
+        }
+        catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+        catch (DuplicateKeyException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("Оборудование \"" + nomenclature.getName() + "\" уже существует");
+        }
+        catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Ошибка обновления: " + e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/nomenclature/{id}")
+    public ResponseEntity<String> deleteNomenclature(@PathVariable Integer id) {
+        try {
+            equipmentApi.deleteNomenclature(id);
+            return ResponseEntity.ok().build();
+        }
+        catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+        catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Ошибка при удалении: " + e.getMessage());
         }
     }
 }

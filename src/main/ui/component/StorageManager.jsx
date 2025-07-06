@@ -11,7 +11,6 @@ const StorageManager = () => {
     const [editingId, setEditingId] = useState(null);
     const [editingAmount, setEditingAmount] = useState(null);
 
-
     const getEquipments = async () => {
         try {
             const response = await axios.get('http://localhost:8080/api/equipment');
@@ -30,49 +29,49 @@ const StorageManager = () => {
                 amount: equipmentAmount
             });
             const newEquipment = response.data;
-            setEquipments(prev => [...prev, newEquipment])
+            setEquipments(prev => [...prev, newEquipment]);
             resetForm();
-            setMessage(`${newEquipment.name} добавлено`);
+            setMessage(`"${newEquipment.name}" добавлено`);
         }
         catch (e) {
             setMessage(e?.response?.data || 'Ошибка при добавлении');
-            if (e.response.status === 409)
+            if (e.response.status === 409) //если существует в списке
                 resetForm();
         }
     };
 
-    const updateEquipment = async (id, newAmount) => {
+    const updateEquipment = async (id, newAmount, name) => {
         try {
             const response = await axios.put(`http://localhost:8080/api/equipment/${id}`, {
+                name: name,
                 amount: newAmount
             });
-            setMessage(response.data);
+            const updatedEquipment = response.data;
+            setEquipments(prev => prev.map(eq => eq.id === id ? updatedEquipment : eq));
+            setMessage(`"${name}" успешно обновлено`);
             setEditingId(null);
             setEditingAmount(null);
-            getEquipments();
         } catch (e) {
             setMessage(e?.response?.data || 'Ошибка при изменении');
         }
     };
 
-    const deleteEquipment = async (id) => {
+    const deleteEquipment = async (id, name) => {
         try {
-            const response = await axios.delete(`http://localhost:8080/api/equipment/${id}`);
-            setMessage(response.data);
-            getEquipments();
+            await axios.delete(`http://localhost:8080/api/equipment/${id}`);
+            setEquipments(prev => prev.filter(eq => eq.id !== id));
+            setMessage(`Оборудование "${name}" удалено`);
         }
         catch (e) {
             setMessage(e?.response?.data || 'Ошибка при удалении');
         }
     }
 
-
     const resetForm = () => {
         setEquipmentName('');
         setEquipmentAmount('');
         setShowAddForm(false);
     }
-
 
     useEffect(() => {
         getEquipments();
@@ -109,60 +108,64 @@ const StorageManager = () => {
                         setShowAddForm(false)
                     }}>Отмена</button>
                 </div>
-            )
-            }
+            )}
 
-
-            {message && <p>{message}</p>}
-
-            <table>
-                {equipments.map((e, index) => (
-                    <tr key={e.id}>
-                        <td>{index + 1}</td>
-                        <td>{e.name}</td>
-                        <td>
-                            {
-                                editingId !== e.id
-                                    ? e.amount
-                                    : <input
-                                        type="text"
-                                        value={editingAmount}
-                                        onChange={e => setEditingAmount(e.target.value)}
-                                        placeholder={"Количество"}
-                                      />
-                            }
-                        </td>
-                        <td>
-                            {
-                                editingId === e.id
-                                    ? <button onClick={() => updateEquipment(e.id, editingAmount)}>
-                                        Сохранить
-                                      </button>
-                                    : <button onClick={() =>
-                                    {
-                                        setShowAddForm(false)
-                                        setEditingAmount(e.amount)
-                                        setEditingId(e.id)
-                                    }}>
-                                        Изменить
-                                      </button>
-                            }
-                        </td>
-                        <td>
-                            {
-                                editingId === e.id
-                                    ? <button onClick={() => setEditingId(null)}>
-                                        Отмена
-                                      </button>
-                                    : <button onClick={() => deleteEquipment(e.id)}>Удалить</button>
-                            }
-                        </td>
-                    </tr>
-                ))}
-            </table>
+            {message && (
+                <div>
+                    <p>{message} <button onClick={() => setMessage('')}>X</button></p>
+                </div>
+            )}
+            { equipments.length === 0 ? (
+                <p>Склад пустой</p>
+            ) : (
+                <table>
+                    {equipments.map((e, index) => (
+                        <tr key={e.id}>
+                            <td>{index + 1}</td>
+                            <td>{e.name}</td>
+                            <td>
+                                {
+                                    editingId === e.id
+                                        ? <input
+                                            type="text"
+                                            value={editingAmount}
+                                            onChange={e => setEditingAmount(e.target.value)}
+                                            placeholder={"Количество"}
+                                        />
+                                        : e.amount
+                                }
+                            </td>
+                            <td>
+                                {
+                                    editingId === e.id
+                                        ? <button onClick={() => updateEquipment(e.id, editingAmount, e.name)}>
+                                            Сохранить
+                                        </button>
+                                        : <button onClick={() =>
+                                        {
+                                            setShowAddForm(false)
+                                            setEditingAmount(e.amount)
+                                            setEditingId(e.id)
+                                        }}>
+                                            Изменить
+                                        </button>
+                                }
+                            </td>
+                            <td>
+                                {
+                                    editingId === e.id
+                                        ? <button onClick={() => setEditingId(null)}>
+                                            Отмена
+                                        </button>
+                                        : <button onClick={() => deleteEquipment(e.id, e.name)}>Удалить</button>
+                                }
+                            </td>
+                        </tr>
+                    ))}
+                </table>
+                )}
         </div>
     );
-
 }
 
 export default StorageManager;
