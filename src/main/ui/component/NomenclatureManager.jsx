@@ -8,16 +8,6 @@ const NomenclatureManager = () => {
     const [editingId, setEditingId] = useState(null);
     const [editName, setEditName] = useState('');
 
-
-    const getNomenclatures = async () => {
-        try {
-            const response = await axios.get('http://localhost:8080/api/nomenclature');
-            setNomenclatures(response.data);
-        } catch (error) {
-            console.error('Ошибка при загрузке номенклатур', error);
-        }
-    };
-
     const addNomenclature = async () => {
         if (!newName.trim()) return;
         try {
@@ -66,7 +56,11 @@ const NomenclatureManager = () => {
     }
 
     useEffect(() => {
-        getNomenclatures();
+        const fetchNomenclatures = async () => {
+            const data = await getNomenclatures();
+            setNomenclatures(data);
+        };
+        fetchNomenclatures();
     }, []);
 
     return (
@@ -85,53 +79,67 @@ const NomenclatureManager = () => {
 
             {message && <p>{message}</p>}
 
-            <table>
-                {
-                    nomenclatures.map((n, index) => (
-                        <tr key={n.id}>
-                            <td>{index + 1}</td>
-                            <td>
-                                {
-                                    editingId === n.id
-                                        ? <input
-                                            type="text"
-                                            value={editName}
-                                            onChange={e => setEditName(e.target.value)}
-                                            placeholder={"Название"}
-                                        />
-                                        : n.name
-                                }
-                            </td>
-                            <td>
-                                {
-                                    editingId === n.id
-                                        ? <button onClick={() => updateNomenclature(n.id, editName)}>
-                                            Сохранить
-                                        </button>
-                                        : <button onClick={() => {
-                                            setEditingId(n.id)
-                                            setEditName(n.name)
-                                        }}>
-                                            Изменить
-                                        </button>
-                                }
-                            </td>
-                            <td>
-                                {
-                                    editingId === n.id
-                                        ? <button onClick={() => setEditingId(null)}>
-                                            Отмена
-                                        </button>
-                                        : <button onClick={() => deleteNomenclature(n.id, n.name)}>Удалить</button>
-                                }
-                            </td>
-                        </tr>
-                    ))
-                }
-
-            </table>
+            {
+                nomenclatures.length === 0 ? (
+                    <p>Список номенклатур пустой</p>
+                ) : (
+                    <table>
+                        {
+                            nomenclatures.map((n, index) => (
+                                <tr key={n.id}>
+                                    <td>{index + 1}</td>
+                                    <td>
+                                        {
+                                            editingId === n.id
+                                                ? <input
+                                                    type="text"
+                                                    value={editName}
+                                                    onChange={e => setEditName(e.target.value)}
+                                                    placeholder={"Название"}
+                                                />
+                                                : n.name
+                                        }
+                                    </td>
+                                    <td>
+                                        {
+                                            editingId === n.id
+                                                ? <button onClick={() => updateNomenclature(n.id, editName)}>
+                                                    Сохранить
+                                                </button>
+                                                : <button onClick={() => {
+                                                    setEditingId(n.id)
+                                                    setEditName(n.name)
+                                                }}>
+                                                    Изменить
+                                                </button>
+                                        }
+                                    </td>
+                                    <td>
+                                        {
+                                            editingId === n.id
+                                                ? <button onClick={() => setEditingId(null)}>
+                                                    Отмена
+                                                </button>
+                                                : <button onClick={() => deleteNomenclature(n.id, n.name)}>Удалить</button>
+                                        }
+                                    </td>
+                                </tr>
+                            ))
+                        }
+                    </table>
+                )
+            }
         </div>
     );
 }
-
 export default NomenclatureManager;
+
+export const getNomenclatures = async () => {
+    try {
+        const response = await axios.get('http://localhost:8080/api/nomenclature');
+        return response.data;
+    } catch (error) {
+        console.error('Ошибка при загрузке номенклатур', error);
+        return [];
+    }
+};

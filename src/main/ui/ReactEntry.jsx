@@ -1,8 +1,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import NomenclatureManager from "./component/NomenclatureManager";
-import {BrowserRouter as Router, Link, Route, Routes} from "react-router-dom";
+import {BrowserRouter, Link, Route, Routes} from "react-router-dom";
 import StorageManager from "./component/StorageManager";
+import RequestManager from "./component/RequestManager";
+import './styles/Styles.css'
+
 
 const root = ReactDOM.createRoot(
   document.getElementById('root')
@@ -12,23 +15,24 @@ const root = ReactDOM.createRoot(
 
 root.render(
   <React.StrictMode>
-      <Router>
+      <BrowserRouter>
           <div>
               <nav>
                   <ul>
-                      <li><Link to="/">Главная</Link></li>
                       <li><Link to="/NomenclatureManager">Управление номенклатурой</Link></li>
                       <li><Link to="/StorageManager">Управление остатками</Link></li>
-                      <li></li>
+                      <li><Link to="/RequestManager">Управление заявками</Link></li>
+                      <li><Link to="/">Главная</Link></li>
                   </ul>
               </nav>
           </div>
 
               <Routes>
-                  <Route path="/"/>
                   <Route path="/NomenclatureManager" element={<NomenclatureManager/>} />
                   <Route path="/StorageManager" element={<StorageManager/>} />
+                  <Route path="/RequestManager" element={<RequestManager/>} />
+                  <Route path="/"/>
               </Routes>
-      </Router>
+      </BrowserRouter>
   </React.StrictMode>
 );

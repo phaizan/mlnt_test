@@ -3,8 +3,6 @@
 -- Назначение: Создание структуры БД
 -- ==============================================
 
-CREATE SEQUENCE seq_global_object_id;
-
 -- Перечень таблиц, хранящих объекты
 CREATE TABLE table_object_type
 (
@@ -24,38 +22,46 @@ CREATE TABLE obj_metadata
     id SERIAL PRIMARY KEY,
     obj_type_id int NOT NULL,
 
-    CONSTRAINT obj_type_id_fk FOREIGN KEY (obj_type_id) REFERENCES table_object_type(id)
+    CONSTRAINT obj_type_id_fk FOREIGN KEY (obj_type_id) REFERENCES table_object_type(id) ON DELETE CASCADE
 );
 
 
 
 CREATE TABLE obj_users
 (
-    id INT PRIMARY KEY DEFAULT nextval('seq_global_object_id'),
+    id INT PRIMARY KEY,
     name VARCHAR(50) NOT NULL,
     login VARCHAR(50) NOT NULL,
-    password VARCHAR(255) NOT NULL
+    password VARCHAR(255) NOT NULL,
+
+    CONSTRAINT id_fk FOREIGN KEY (id) REFERENCES obj_metadata(id) ON DELETE CASCADE
 );
 
 -- Таблица ТМЦ
 CREATE TABLE obj_equipments
 (
-    id INT PRIMARY KEY DEFAULT nextval('seq_global_object_id'),
-    amount INT NOT NULL
+    id INT PRIMARY KEY,
+    amount INT NOT NULL,
+
+    CONSTRAINT id_fk FOREIGN KEY (id) REFERENCES obj_metadata(id) ON DELETE CASCADE
 );
 
 CREATE TABLE obj_requests
 (
-    id INT PRIMARY KEY DEFAULT nextval('seq_global_object_id'),
+    id INT PRIMARY KEY,
     created_at TIMESTAMP NOT NULL,
-    closed_at TIMESTAMP
+    closed_at TIMESTAMP,
+
+    CONSTRAINT id_fk FOREIGN KEY (id) REFERENCES obj_metadata(id) ON DELETE CASCADE
 );
 
 CREATE TABLE obj_request_equipments
 (
-    id INT PRIMARY KEY DEFAULT nextval('seq_global_object_id'),
+    id INT PRIMARY KEY,
     amount INT NOT NULL,
-    closed_at TIMESTAMP
+    closed_at TIMESTAMP,
+
+    CONSTRAINT id_fk FOREIGN KEY (id) REFERENCES obj_metadata(id) ON DELETE CASCADE
 );
 
 -- Перечень всех рубрикаторов
@@ -102,9 +108,9 @@ CREATE TABLE bnd_object_object
     secondary_object_id INT NOT NULL,
     type_id INT NOT NULL,
 
-    CONSTRAINT main_object_id_fk FOREIGN KEY (main_object_id) REFERENCES obj_metadata(id) ,
-    CONSTRAINT secondary_object_id_fk FOREIGN KEY (secondary_object_id) REFERENCES obj_metadata(id) ,
-    CONSTRAINT type_id_fk FOREIGN KEY (type_id) REFERENCES bnd_object_object_type(id)
+    CONSTRAINT main_object_id_fk FOREIGN KEY (main_object_id) REFERENCES obj_metadata(id) ON DELETE CASCADE,
+    CONSTRAINT secondary_object_id_fk FOREIGN KEY (secondary_object_id) REFERENCES obj_metadata(id) ON DELETE CASCADE,
+        CONSTRAINT type_id_fk FOREIGN KEY (type_id) REFERENCES bnd_object_object_type(id) ON DELETE CASCADE
 );
 
 CREATE TABLE bnd_object_rubricator_type
@@ -121,7 +127,7 @@ CREATE TABLE bnd_object_rubricator
     rubr_list_id INT NOT NULL,
     type_id INT NOT NULL,
 
-    CONSTRAINT object_id_fk FOREIGN KEY (object_id) REFERENCES obj_metadata(id),
-    CONSTRAINT rubr_list_id_fk FOREIGN KEY (rubr_list_id) REFERENCES rubr_list(id),
-    CONSTRAINT type_id_fk FOREIGN KEY (type_id) REFERENCES bnd_object_rubricator_type(id)
+    CONSTRAINT object_id_fk FOREIGN KEY (object_id) REFERENCES obj_metadata(id) ON DELETE CASCADE,
+    CONSTRAINT rubr_list_id_fk FOREIGN KEY (rubr_list_id) REFERENCES rubr_list(id) ON DELETE CASCADE,
+    CONSTRAINT type_id_fk FOREIGN KEY (type_id) REFERENCES bnd_object_rubricator_type(id) ON DELETE CASCADE
 );

@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+//TODO прописать ошибки при вставлении (?)
 
 @Service
 @RequiredArgsConstructor
@@ -61,7 +62,7 @@ public class EquipmentApi {
     }
 
     public void deleteEquipment(Integer id) {
-        String sql = "DELETE FROM obj_equipments WHERE id = ?";
+        String sql = "DELETE FROM obj_metadata WHERE id = ?";
         int deleted = jdbcTemplate.update(sql, id);
         if (deleted == 0)
             throw new NoSuchElementException("Не найдено оборудование с id " + id);

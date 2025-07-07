@@ -3,39 +3,37 @@
 -- Назначение: Создание структуры БД
 -- ==============================================
 
+INSERT INTO obj_metadata (id, obj_type_id) VALUES
+                                               (1, 1),  -- пользователь
+                                               (2, 2),
+                                               (3, 2),
+                                               (4, 2),
+                                               (5, 2),
+                                               (6, 3),  -- заявка
+                                               (7, 4),
+                                               (8, 4),
+                                               (9, 4);
 
 
+INSERT INTO obj_users (id, name, login, password) VALUES
+                                                  (1, 'Иванов Иван Иванович', 'vanek@ya.ru', 'theBestPasswordEver');
 
-INSERT INTO obj_metadata (obj_type_id) VALUES
-                                           (1),
-                                           (2),
-                                           (2),
-                                           (2),
-                                           (2),
-                                           (3),
-                                           (4),
-                                           (4),
-                                           (4);
+INSERT INTO obj_equipments (id, amount) VALUES
+                                        (2, 5),
+                                        (3, 3),
+                                        (4, 1),
+                                        (5, 8);
 
-INSERT INTO obj_users (name, login, password) VALUES
-                                                  ('Иванов Иван Иванович', 'vanek@ya.ru', 'theBestPasswordEver');
-
-INSERT INTO obj_equipments (amount) VALUES
-                                        (5),
-                                        (3),
-                                        (1),
-                                        (8);
-
-INSERT INTO obj_requests (created_at) VALUES
-                                          ('2025-07-02 14:30:00');
+INSERT INTO obj_requests (id, created_at) VALUES
+                                          (6, '2025-07-02 14:30:00');
 
 
-INSERT INTO obj_request_equipments (amount, closed_at) VALUES
-                                                           (2, '2025-07-02 15:00:00'),
-                                                           (1, '2025-07-02 15:00:00');
+INSERT INTO obj_request_equipments (id, amount, closed_at) VALUES
+                                                           (7,2, '2025-07-02 15:00:00'),
+                                                           (8,1, '2025-07-02 15:00:00');
 
-INSERT INTO obj_request_equipments (amount) VALUES
-                                                (10);
+INSERT INTO obj_request_equipments (id, amount) VALUES
+                                                (9, 10);
 
 INSERT INTO rubr_user_roles (name) VALUES
                                        ('Сотрудник'),
@@ -64,7 +62,7 @@ INSERT INTO bnd_object_object (main_object_id, secondary_object_id, type_id) VAL
                                                                                  (6, 9, 2);
 
 INSERT INTO bnd_object_rubricator_type (name) VALUES
-                                                  ('Роль пользвателя'),
+                                                  ('Роль пользватaafеля'),
                                                   ('Номенклатура ТМЦ'),
                                                   ('Статус заявки'),
                                                   ('Статус позиции в заявке');
@@ -76,9 +74,9 @@ INSERT INTO bnd_object_rubricator (object_id, rubr_list_id, rubr_id, type_id) VA
                                                                                   (4,2, 3, 2),
                                                                                   (5,2, 4, 2),
                                                                                   (6,3, 1, 3),
-                                                                                  (7,2, 1, 2),
-                                                                                  (8,2, 2, 2),
-                                                                                  (9,2, 3, 2),
+                                                                                  (7,2, 1, 2), --Бумага
+                                                                                  (8,2, 2, 2), --Карандаш
+                                                                                  (9,2, 4, 2), --Ноутбук
                                                                                   (7,3, 2, 4),
                                                                                   (8,3, 2, 4),
                                                                                   (9,3, 1, 4);
