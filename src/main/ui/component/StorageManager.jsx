@@ -118,7 +118,7 @@ const StorageManager = () => {
                         placeholder="Количество"
                     />
                     <button className="btn" onClick={addEquipment}>Добавить</button>
-                    <button className="btn btn-secondary" onClick={() => {
+                    <button className="btn" onClick={() => {
                         setMessage('');
                         setShowAddForm(false);
                     }}>Отмена</button>
@@ -174,7 +174,7 @@ const StorageManager = () => {
                             </td>
                             <td>
                                 {editingId === e.id ? (
-                                    <button className="btn btn-secondary" onClick={() => setEditingId(null)}>Отмена</button>
+                                    <button className="btn" onClick={() => setEditingId(null)}>Отмена</button>
                                 ) : (
                                     <button className="btn btn-danger" onClick={() => deleteEquipment(e.id, e.name)}>Удалить</button>
                                 )}

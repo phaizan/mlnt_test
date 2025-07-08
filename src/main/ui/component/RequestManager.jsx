@@ -2,6 +2,9 @@ import React, {useEffect, useState} from 'react';
 import axios from 'axios';
 import { getNomenclatures } from "./NomenclatureManager";
 
+//TODO исправить отображение id
+
+//TODO перенсти статус заявки (?)
 
 const RequestManager = () => {
     const [requests, setRequests] = useState([]);
@@ -10,7 +13,6 @@ const RequestManager = () => {
 
         }
     );
-    const [showAddForm, setShowAddForm] = useState(false);
     const [items, setItems] = useState([]);
     const [nomenclatures, setNomenclatures] = useState([]);
     const [message, setMessage] = useState('');
@@ -18,7 +20,8 @@ const RequestManager = () => {
     const getRequests = async () => {
         try {
             const response = await axios.get('http://localhost:8080/api/request');
-            setRequests(response.data)
+            setRequests(response.data);
+            console.log(response.data);
         }
         catch (e) {
             console.error('Ошибка при загрузке заявок: ')
@@ -28,15 +31,16 @@ const RequestManager = () => {
     
     
     const addItem = () => {
-        setItems(prev => [...prev, {name: '', amount: ''}]);
+        setItems(prev => [...prev, { id:'', name: '', amount: ''}]);
     };
     
     const addRequest = async () => {
         try {
-            const response = await axios.post('http://localhost:8080/api/request');
+            console.log(items);
+            const response = await axios.post('http://localhost:8080/api/request', items);
             setRequests(prev => [...prev, response.data]);
             setMessage(`Запрос добавлен`);
-
+            console.log("Данные" + response.data);
         }
         catch (e) {
             setMessage(e?.response?.data || `Ошибка при добавлении`);
@@ -66,23 +70,29 @@ const RequestManager = () => {
         <div className="body">
             <h2>Управление заявками</h2>
 
-            {!showAddForm || items.length === 0 ? (
+            {items.length === 0 ? (
                 <button className="btn" onClick={() => {
-                    setShowAddForm(true);
                     addItem();
                 }}>
                     Создать заявку
                 </button>
             ) : null}
 
-            {showAddForm && items.length > 0 && (
+            {items.length > 0 && (
                 <div className="request-form">
                     {items.map((item, index) => (
                         <div key={index} className="form-row">
                             <select
                                 value={item.name}
                                 required
-                                onChange={e => handleChange(index, 'name', e.target.value)}
+                                onChange={e => {
+                                    const selectedName = e.target.value;
+                                    const selected = nomenclatures.find(n => n.name === selectedName);
+                                    if (selected) {
+                                        handleChange(index, 'name', selectedName);
+                                        handleChange(index, 'nomenclatureId', selected.id);
+                                    }
+                                }}
                             >
                                 <option value="">Выберите ТМЦ</option>
                                 {nomenclatures.map(n => (
@@ -110,8 +120,14 @@ const RequestManager = () => {
                 </div>
             )}
 
+            {message && (
+                <div className="message">
+                    <p>{message} <button className="btn btn-danger" onClick={() => setMessage('')}>X</button></p>
+                </div>
+            )}
+
             {requests.length === 0 ? (
-                <p>Список запросов пуст</p>
+                <p>Список заявок пуст</p>
             ) : (
                 <table className="table">
                     <thead>
@@ -161,9 +177,6 @@ const RequestManager = () => {
             )}
         </div>
     );
-
-
-
 }
 
 export default RequestManager;

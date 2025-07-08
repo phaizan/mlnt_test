@@ -43,7 +43,8 @@ h2 {
 .form-row {
     display: flex;
     gap: 10px;
-    margin-bottom: 10px;
+    margin: 1rem 0;
+    flex-wrap: wrap;
     align-items: center;
 }
 
@@ -60,20 +61,29 @@ h2 {
 .table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 20px;
+    margin-top: 1rem;
 }
 
 .table th,
 .table td {
     border: 1px solid #ccc;
-    padding: 6px 10px;
+    padding: 0.6rem 0.8rem;
     text-align: center;
 }
 
 .table th {
     background-color: #f5f5f5;
+    font-weight: bold;
 }
 
 .table tbody tr:nth-child(odd) {
     background-color: #fafafa;
+}
+
+.btn-secondary {
+    background-color: #757575;
+}
+
+.btn-secondary:hover {
+    background-color: #616161;
 }

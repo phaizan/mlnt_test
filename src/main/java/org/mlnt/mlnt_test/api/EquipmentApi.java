@@ -27,7 +27,8 @@ public class EquipmentApi {
                 JOIN bnd_object_rubricator_type bort ON bor.type_id = bort.id
                 JOIN rubr_equipment_nomenclatures ren ON ren.id = bor.rubr_id
                 
-                WHERE bort.name = 'Номенклатура ТМЦ'""";
+                WHERE bort.name = 'Номенклатура ТМЦ'
+                ORDER BY oe.id""";
         return jdbcTemplate.query(sql, equipmentRowMapper());
     }
 
@@ -69,7 +70,7 @@ public class EquipmentApi {
     }
 
     public List<Nomenclature> getNomenclatures() {
-        String sql = "select * from rubr_equipment_nomenclatures";
+        String sql = "select * from rubr_equipment_nomenclatures ORDER BY id";
         return jdbcTemplate.query(sql, nomenclatureRowMapper());
     }
 

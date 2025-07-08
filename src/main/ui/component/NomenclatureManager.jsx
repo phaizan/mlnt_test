@@ -64,17 +64,17 @@ const NomenclatureManager = () => {
     }, []);
 
     return (
-        <div style={{ padding: '1rem' }}>
+        <div className="body">
             <h2>Номенклатура ТМЦ</h2>
 
-            <div>
+            <div className="form-row">
                 <input
                     type="text"
                     value={newName}
                     onChange={e => setNewName(e.target.value)}
                     placeholder="Название номенклатуры"
                 />
-                <button onClick={addNomenclature}>Добавить</button>
+                <button className="btn" onClick={addNomenclature}>Добавить</button>
             </div>
 
             {message && <p>{message}</p>}
@@ -83,7 +83,7 @@ const NomenclatureManager = () => {
                 nomenclatures.length === 0 ? (
                     <p>Список номенклатур пустой</p>
                 ) : (
-                    <table>
+                    <table className="table">
                         {
                             nomenclatures.map((n, index) => (
                                 <tr key={n.id}>
@@ -103,10 +103,10 @@ const NomenclatureManager = () => {
                                     <td>
                                         {
                                             editingId === n.id
-                                                ? <button onClick={() => updateNomenclature(n.id, editName)}>
+                                                ? <button className="btn" onClick={() => updateNomenclature(n.id, editName)}>
                                                     Сохранить
                                                 </button>
-                                                : <button onClick={() => {
+                                                : <button className="btn" onClick={() => {
                                                     setEditingId(n.id)
                                                     setEditName(n.name)
                                                 }}>
@@ -117,10 +117,10 @@ const NomenclatureManager = () => {
                                     <td>
                                         {
                                             editingId === n.id
-                                                ? <button onClick={() => setEditingId(null)}>
+                                                ? <button className="btn" onClick={() => setEditingId(null)}>
                                                     Отмена
                                                 </button>
-                                                : <button onClick={() => deleteNomenclature(n.id, n.name)}>Удалить</button>
+                                                : <button className="btn btn-danger" onClick={() => deleteNomenclature(n.id, n.name)}>Удалить</button>
                                         }
                                     </td>
                                 </tr>

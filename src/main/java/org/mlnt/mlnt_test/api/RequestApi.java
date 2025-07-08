@@ -3,13 +3,15 @@ package org.mlnt.mlnt_test.api;
 import lombok.RequiredArgsConstructor;
 import org.mlnt.mlnt_test.entity.Request;
 import org.mlnt.mlnt_test.entity.RequestEquipment;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.*;
 
-//TODO из obj_metadata не удаляются старые объекты
-
+//TODO пробежаться по сообщениям в исключениях во всех апи
 
 @Service
 @RequiredArgsConstructor
@@ -34,7 +36,7 @@ public class RequestApi {
                 rrs_equipment.id AS equipment_status_id,
                 rrs_equipment.name AS equipment_status_name,
                 obr.created_at AS equipment_created,
-                obr.closed_at AS equipment_closed
+                ore.closed_at AS equipment_closed
             
             FROM obj_requests obr
             
@@ -101,6 +103,58 @@ public class RequestApi {
         });
     }
 
+    @Transactional
+    public Request addRequest (List<RequestEquipment> requestEquipments) {
+        try {
+            Request request = new Request()
+                    .setCreatedAt(LocalDateTime.now())
+                    .setRequestEquipments(requestEquipments)
+                    .setStatusId(1); //Принята
+
+            final int OBJ_TYPE_REQUEST = 3;
+            final int OBJ_TYPE_REQUEST_EQUIPMENT = 4;
+
+            String sqlInsertMeta = "INSERT INTO obj_metadata (obj_type_id) VALUES (?) RETURNING id;";
+            Integer requestId = jdbcTemplate.queryForObject(sqlInsertMeta, Integer.class, OBJ_TYPE_REQUEST);
+
+            if (requestId == null) {
+                throw new NoSuchElementException("Не удалось вставить заявку");
+            }
+            request.setId(requestId);
+
+            String sqlInsertRequest = "INSERT INTO obj_requests (id, created_at) VALUES (?, ?)";
+            String sqlInsertBndRequest_RubricatorStatus = "INSERT INTO bnd_object_rubricator (object_id, rubr_id, rubr_list_id, type_id) VALUES (?, ?, 3, 3);";
+
+            jdbcTemplate.update(sqlInsertRequest, request.getId(), request.getCreatedAt());
+            jdbcTemplate.update(sqlInsertBndRequest_RubricatorStatus, request.getId(), request.getStatusId());
 
 
+
+            String sqlInsertRequestEquipment = "INSERT INTO obj_request_equipments (id, amount) VALUES (?, ?);";
+            String sqlInsertBndRequest_RequestEquipment = "INSERT INTO bnd_object_object (main_object_id, secondary_object_id, type_id) VALUES (?, ?, 2);";
+            String sqlInsertBndRequestEquipment_RubricatorStatus = "INSERT INTO bnd_object_rubricator (object_id, rubr_id, rubr_list_id, type_id) VALUES (?, ?, 3, 4);";
+            String sqlInsertBndRequestEquipment_RubricatorName = "INSERT INTO bnd_object_rubricator (object_id, rubr_id, rubr_list_id, type_id) VALUES (?, ?, 2, 2);";
+
+            for (RequestEquipment requestEquipment : requestEquipments) {
+                requestEquipment
+                        .setCreatedAt(request.getCreatedAt())
+                        .setStatusId(1);    //Принята
+
+                Integer requestEquipmentId = jdbcTemplate.queryForObject(sqlInsertMeta, Integer.class, OBJ_TYPE_REQUEST_EQUIPMENT);
+
+                if (requestEquipmentId == null) {
+                    throw new NoSuchElementException("Не удалось вставить ТМЦ заявки");
+                }
+                requestEquipment.setId(requestEquipmentId);
+
+                jdbcTemplate.update(sqlInsertRequestEquipment, requestEquipment.getId(), requestEquipment.getAmount());
+                jdbcTemplate.update(sqlInsertBndRequest_RequestEquipment, request.getId(), requestEquipment.getId());
+                jdbcTemplate.update(sqlInsertBndRequestEquipment_RubricatorStatus, requestEquipment.getId(), requestEquipment.getStatusId());
+                jdbcTemplate.update(sqlInsertBndRequestEquipment_RubricatorName, requestEquipment.getId(), requestEquipment.getNomenclatureId());
+            }
+            return request;
+        } catch (DataAccessException e) {
+            throw new IllegalStateException("Ошибка при доступе к базе данных" + e);
+        }
+    }
 }
