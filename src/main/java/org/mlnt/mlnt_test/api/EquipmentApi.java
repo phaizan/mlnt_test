@@ -10,8 +10,6 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.NoSuchElementException;
 
-//TODO прописать ошибки при вставлении (?)
-
 @Service
 @RequiredArgsConstructor
 public class EquipmentApi {
@@ -60,6 +58,15 @@ public class EquipmentApi {
             return equipment;
         else
             throw new NoSuchElementException("Не найдено оборудование с id " + id);
+    }
+
+    public Equipment updateEquipment(Equipment equipment) {
+        String sql = "UPDATE obj_equipments SET amount = ? WHERE id = ?";
+        int updated = jdbcTemplate.update(sql, equipment.getAmount(), equipment.getId());
+        if (updated > 0)
+            return equipment;
+        else
+            throw new NoSuchElementException("Не найдено оборудование с id " + equipment.getId());
     }
 
     public void deleteEquipment(Integer id) {

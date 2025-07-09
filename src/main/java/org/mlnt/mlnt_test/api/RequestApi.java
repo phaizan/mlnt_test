@@ -1,6 +1,7 @@
 package org.mlnt.mlnt_test.api;
 
 import lombok.RequiredArgsConstructor;
+import org.mlnt.mlnt_test.entity.Equipment;
 import org.mlnt.mlnt_test.entity.Request;
 import org.mlnt.mlnt_test.entity.RequestEquipment;
 import org.springframework.dao.DataAccessException;
@@ -10,14 +11,24 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
-//TODO пробежаться по сообщениям в исключениях во всех апи
+//TODO сделать чтобы статусы обновлялись
+//TODO добавить проверку на дубликаты при добавлении заявки
 
 @Service
 @RequiredArgsConstructor
 public class RequestApi {
 
     private final JdbcTemplate jdbcTemplate;
+    private final EquipmentApi equipmentApi;
+
+    final int OBJ_TYPE_REQUEST = 3;
+    final int OBJ_TYPE_REQUEST_EQUIPMENT = 4;
+    final int REQUEST_STATUS_ACCEPTED = 1;
+    final int REQUEST_STATUS_COMPLETED = 2;
+    final int BND_REQUEST_STATUS = 3;
+    final int BND_REQUEST_EQUIPMENT_STATUS = 4;
 
     public List<Request> getRequests() {
 
@@ -65,7 +76,8 @@ public class RequestApi {
                 boot.name = 'Заявка содержит позицию' AND
                 bort_name.name = 'Номенклатура ТМЦ' AND
                 bort_status.name = 'Статус позиции в заявке'
-            """;
+
+            ORDER BY obr.id""";
 
         return jdbcTemplate.query(sql, rs -> {
             Map<Integer, Request> requestMap = new LinkedHashMap<>();
@@ -108,11 +120,7 @@ public class RequestApi {
         try {
             Request request = new Request()
                     .setCreatedAt(LocalDateTime.now())
-                    .setRequestEquipments(requestEquipments)
-                    .setStatusId(1); //Принята
-
-            final int OBJ_TYPE_REQUEST = 3;
-            final int OBJ_TYPE_REQUEST_EQUIPMENT = 4;
+                    .setRequestEquipments(requestEquipments);
 
             String sqlInsertMeta = "INSERT INTO obj_metadata (obj_type_id) VALUES (?) RETURNING id;";
             Integer requestId = jdbcTemplate.queryForObject(sqlInsertMeta, Integer.class, OBJ_TYPE_REQUEST);
@@ -128,8 +136,6 @@ public class RequestApi {
             jdbcTemplate.update(sqlInsertRequest, request.getId(), request.getCreatedAt());
             jdbcTemplate.update(sqlInsertBndRequest_RubricatorStatus, request.getId(), request.getStatusId());
 
-
-
             String sqlInsertRequestEquipment = "INSERT INTO obj_request_equipments (id, amount) VALUES (?, ?);";
             String sqlInsertBndRequest_RequestEquipment = "INSERT INTO bnd_object_object (main_object_id, secondary_object_id, type_id) VALUES (?, ?, 2);";
             String sqlInsertBndRequestEquipment_RubricatorStatus = "INSERT INTO bnd_object_rubricator (object_id, rubr_id, rubr_list_id, type_id) VALUES (?, ?, 3, 4);";
@@ -137,8 +143,7 @@ public class RequestApi {
 
             for (RequestEquipment requestEquipment : requestEquipments) {
                 requestEquipment
-                        .setCreatedAt(request.getCreatedAt())
-                        .setStatusId(1);    //Принята
+                        .setCreatedAt(request.getCreatedAt());
 
                 Integer requestEquipmentId = jdbcTemplate.queryForObject(sqlInsertMeta, Integer.class, OBJ_TYPE_REQUEST_EQUIPMENT);
 
@@ -152,9 +157,102 @@ public class RequestApi {
                 jdbcTemplate.update(sqlInsertBndRequestEquipment_RubricatorStatus, requestEquipment.getId(), requestEquipment.getStatusId());
                 jdbcTemplate.update(sqlInsertBndRequestEquipment_RubricatorName, requestEquipment.getId(), requestEquipment.getNomenclatureId());
             }
+
+            processRequest(request);
+
             return request;
         } catch (DataAccessException e) {
             throw new IllegalStateException("Ошибка при доступе к базе данных" + e);
         }
     }
+
+    public void processRequest (Request request) {
+
+        List<Integer> nomenclaturesIds = new ArrayList<>();
+        for (RequestEquipment requestEquipment : request.getRequestEquipments()) {
+            nomenclaturesIds.add(requestEquipment.getNomenclatureId());
+        }
+        String inSql = nomenclaturesIds.stream().map(id -> "?").collect(Collectors.joining(",", "(", ")"));
+
+        String sql = """
+                SELECT oe.id AS id, ren.id AS nomenclatureId, oe.amount 
+                
+                FROM obj_equipments oe
+                JOIN bnd_object_rubricator bor ON bor.id = oe.id
+                JOIN bnd_object_rubricator_type bort ON bor.type_id = bort.id
+                JOIN rubr_equipment_nomenclatures ren ON ren.id = bor.rubr_id
+                
+                WHERE bort.name = 'Номенклатура ТМЦ'
+                    AND bor.rubr_list_id = 2
+                    AND ren.id IN""" + inSql;
+
+        Map<Integer, Equipment> equipment = jdbcTemplate.query(
+                sql,
+                nomenclaturesIds.toArray(),
+                rs -> {
+                    Map<Integer, Equipment> map = new HashMap<>();
+                    while (rs.next()) {
+                        Equipment eq = new Equipment()
+                                .setId(rs.getInt("id"))
+                                .setNomenclatureId(rs.getInt("nomenclatureId"))
+                                .setAmount(rs.getInt("amount"));
+                        map.put(eq.getNomenclatureId(), eq);
+                    }
+                    return map;
+                }
+        );
+
+        List<RequestEquipment> requestEquipment = request.getRequestEquipments();
+
+        boolean isRequestCompleted = true;
+
+        for (RequestEquipment re : requestEquipment) {
+            Equipment eq = equipment.get(re.getNomenclatureId());
+            if (eq != null) {
+                if (re.getAmount() <= eq.getAmount()) {
+                    eq.setAmount(eq.getAmount() - re.getAmount());
+                    equipmentApi.updateEquipment(eq);
+                    re.setStatusId(REQUEST_STATUS_COMPLETED);
+                }
+                else
+                {
+                    re.setStatusId(REQUEST_STATUS_ACCEPTED);
+                    request.setStatusId(REQUEST_STATUS_ACCEPTED);
+                }
+            }
+            else {
+                throw new NoSuchElementException("Ошибка при обработке запроса");
+            }
+        }
+        if (request.getStatusId() == 0) {
+            request.setStatusId(REQUEST_STATUS_COMPLETED);
+        }
+        request = setRequestStatuses(request);
+
+    }
+
+    public Request setRequestStatuses (Request request) {
+        String sqlInsertStatus = """
+                UPDATE bnd_object_rubricator bor
+                SET rubr_id = ?
+                WHERE bor.object_id = ?
+                    AND bor.type_id = ?""";
+
+        String getStatusName = """
+                SELECT rrs.name
+                FROM rubr_request_statuses rrs
+                JOIN bnd_object_rubricator bor ON bor.rubr_id = rrs.id
+                WHERE bor.object_id = ?
+                    AND bor.type_id = ?""";
+
+        jdbcTemplate.update(sqlInsertStatus, request.getStatusId(), request.getId(), BND_REQUEST_STATUS);
+        request.setStatusName(jdbcTemplate.queryForObject(getStatusName, String.class, request.getId(), BND_REQUEST_STATUS));
+
+        for (RequestEquipment rE : request.getRequestEquipments()) {
+            jdbcTemplate.update(sqlInsertStatus, rE.getStatusId(), rE.getId(), BND_REQUEST_EQUIPMENT_STATUS);
+            rE.setStatusName(jdbcTemplate.queryForObject(getStatusName, String.class, rE.getId(), BND_REQUEST_EQUIPMENT_STATUS));
+        }
+        return request;
+    }
+
 }

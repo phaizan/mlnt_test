@@ -2,12 +2,11 @@ import React, {useEffect, useState} from 'react';
 import axios from 'axios';
 import { getNomenclatures } from "./NomenclatureManager";
 
-//TODO исправить отображение id
-
-//TODO перенсти статус заявки (?)
 
 const RequestManager = () => {
-    const [requests, setRequests] = useState([]);
+    const [requests, setRequests] = useState([
+
+    ]);
     const [request, setRequest] = useState(
         {
 
@@ -40,7 +39,7 @@ const RequestManager = () => {
             const response = await axios.post('http://localhost:8080/api/request', items);
             setRequests(prev => [...prev, response.data]);
             setMessage(`Запрос добавлен`);
-            console.log("Данные" + response.data);
+            console.log("Данные", response.data);
         }
         catch (e) {
             setMessage(e?.response?.data || `Ошибка при добавлении`);
@@ -116,6 +115,7 @@ const RequestManager = () => {
                     <div className="form-actions">
                         <button className="btn" onClick={addItem}>Добавить ТМЦ в заявку</button>
                         <button className="btn btn-primary" onClick={addRequest} disabled={!isFormValid}>Отправить заявку</button>
+                        <button className="btn" onClick={() => setItems([])}>Отмена</button>
                     </div>
                 </div>
             )}
@@ -148,12 +148,13 @@ const RequestManager = () => {
                     </tr>
                     </thead>
                     <tbody>
-                    {requests.map((req) => (
+                    {requests.map((req, i) => (
+
                         req.requestEquipments?.map((eq, idx) => (
                             <tr key={eq.id}>
                                 {idx === 0 && (
                                     <>
-                                        <td rowSpan={req.requestEquipments.length}>{req.id}</td>
+                                        <td rowSpan={req.requestEquipments.length}>{i + 1}</td>
                                         <td rowSpan={req.requestEquipments.length}>{req.statusName}</td>
                                         <td rowSpan={req.requestEquipments.length}>
                                             {req.createdAt ? new Date(req.createdAt).toLocaleString() : '—'}
@@ -163,7 +164,7 @@ const RequestManager = () => {
                                         </td>
                                     </>
                                 )}
-                                <td>{eq.id}</td>
+                                <td>{idx + 1}</td>
                                 <td>{eq.createdAt ? new Date(eq.createdAt).toLocaleString() : '—'}</td>
                                 <td>{eq.closedAt ? new Date(eq.closedAt).toLocaleString() : '—'}</td>
                                 <td>{eq.name}</td>

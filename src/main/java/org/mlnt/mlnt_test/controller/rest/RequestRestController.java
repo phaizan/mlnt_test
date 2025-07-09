@@ -31,6 +31,7 @@ public class RequestRestController {
     public ResponseEntity<?> addRequest(@RequestBody List<RequestEquipment> requestEquipment) {
         try {
             Request added = requestApi.addRequest(requestEquipment);
+            /*requestApi.processRequest(added);*/
             return ResponseEntity.status(HttpStatus.CREATED).body(added);
         }
         catch (NoSuchElementException e) {
