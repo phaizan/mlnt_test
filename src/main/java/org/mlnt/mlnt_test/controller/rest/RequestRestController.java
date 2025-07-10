@@ -31,7 +31,7 @@ public class RequestRestController {
     public ResponseEntity<?> addRequest(@RequestBody List<RequestEquipment> requestEquipment) {
         try {
             Request added = requestApi.addRequest(requestEquipment);
-            /*requestApi.processRequest(added);*/
+            requestApi.processRequestOnRequestAdd(added);
             return ResponseEntity.status(HttpStatus.CREATED).body(added);
         }
         catch (NoSuchElementException e) {
@@ -42,6 +42,8 @@ public class RequestRestController {
         }
     }
 
-
-
+    @DeleteMapping("/test")
+    public void deleteNotTest() {
+        requestApi.deleteNotTest();
+    }
 }

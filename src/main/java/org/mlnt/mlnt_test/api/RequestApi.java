@@ -6,6 +6,7 @@ import org.mlnt.mlnt_test.entity.Request;
 import org.mlnt.mlnt_test.entity.RequestEquipment;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,8 +14,9 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
-//TODO сделать чтобы статусы обновлялись
-//TODO добавить проверку на дубликаты при добавлении заявки
+
+//TODO посмотреть предупреждения
+//TODO сделать так, чтобы при добавлении новой заявки она не отбирала у тех, что в очереди
 
 @Service
 @RequiredArgsConstructor
@@ -77,7 +79,7 @@ public class RequestApi {
                 bort_name.name = 'Номенклатура ТМЦ' AND
                 bort_status.name = 'Статус позиции в заявке'
 
-            ORDER BY obr.id""";
+            ORDER BY ore.id""";
 
         return jdbcTemplate.query(sql, rs -> {
             Map<Integer, Request> requestMap = new LinkedHashMap<>();
@@ -120,7 +122,9 @@ public class RequestApi {
         try {
             Request request = new Request()
                     .setCreatedAt(LocalDateTime.now())
-                    .setRequestEquipments(requestEquipments);
+                    .setRequestEquipments(requestEquipments)
+                    .setStatusId(REQUEST_STATUS_ACCEPTED)
+                    .setStatusName("Принята");
 
             String sqlInsertMeta = "INSERT INTO obj_metadata (obj_type_id) VALUES (?) RETURNING id;";
             Integer requestId = jdbcTemplate.queryForObject(sqlInsertMeta, Integer.class, OBJ_TYPE_REQUEST);
@@ -143,7 +147,9 @@ public class RequestApi {
 
             for (RequestEquipment requestEquipment : requestEquipments) {
                 requestEquipment
-                        .setCreatedAt(request.getCreatedAt());
+                        .setCreatedAt(request.getCreatedAt())
+                        .setStatusId(REQUEST_STATUS_ACCEPTED)
+                        .setStatusName("Принята");
 
                 Integer requestEquipmentId = jdbcTemplate.queryForObject(sqlInsertMeta, Integer.class, OBJ_TYPE_REQUEST_EQUIPMENT);
 
@@ -157,16 +163,13 @@ public class RequestApi {
                 jdbcTemplate.update(sqlInsertBndRequestEquipment_RubricatorStatus, requestEquipment.getId(), requestEquipment.getStatusId());
                 jdbcTemplate.update(sqlInsertBndRequestEquipment_RubricatorName, requestEquipment.getId(), requestEquipment.getNomenclatureId());
             }
-
-            processRequest(request);
-
             return request;
         } catch (DataAccessException e) {
             throw new IllegalStateException("Ошибка при доступе к базе данных" + e);
         }
     }
 
-    public void processRequest (Request request) {
+    public Request processRequestOnRequestAdd (Request request) {
 
         List<Integer> nomenclaturesIds = new ArrayList<>();
         for (RequestEquipment requestEquipment : request.getRequestEquipments()) {
@@ -178,7 +181,7 @@ public class RequestApi {
                 SELECT oe.id AS id, ren.id AS nomenclatureId, oe.amount 
                 
                 FROM obj_equipments oe
-                JOIN bnd_object_rubricator bor ON bor.id = oe.id
+                JOIN bnd_object_rubricator bor ON bor.object_id = oe.id
                 JOIN bnd_object_rubricator_type bort ON bor.type_id = bort.id
                 JOIN rubr_equipment_nomenclatures ren ON ren.id = bor.rubr_id
                 
@@ -202,43 +205,181 @@ public class RequestApi {
                 }
         );
 
-        List<RequestEquipment> requestEquipment = request.getRequestEquipments();
+        List<Equipment> storage = equipmentApi.getEquipment();
 
-        boolean isRequestCompleted = true;
-
-        for (RequestEquipment re : requestEquipment) {
-            Equipment eq = equipment.get(re.getNomenclatureId());
-            if (eq != null) {
-                if (re.getAmount() <= eq.getAmount()) {
-                    eq.setAmount(eq.getAmount() - re.getAmount());
-                    equipmentApi.updateEquipment(eq);
-                    re.setStatusId(REQUEST_STATUS_COMPLETED);
-                }
-                else
-                {
-                    re.setStatusId(REQUEST_STATUS_ACCEPTED);
-                    request.setStatusId(REQUEST_STATUS_ACCEPTED);
-                }
-            }
-            else {
-                throw new NoSuchElementException("Ошибка при обработке запроса");
-            }
+        for (Equipment eq : storage) {
+            processRequestsOnEquipmentUpdate(eq);
         }
-        if (request.getStatusId() == 0) {
-            request.setStatusId(REQUEST_STATUS_COMPLETED);
-        }
-        request = setRequestStatuses(request);
 
+        return request;
     }
 
-    public Request setRequestStatuses (Request request) {
+    public void processRequestsOnEquipmentUpdate (Equipment equipment) {
+
+        if (equipment.getNomenclatureId() == 0) {
+            equipment.setNomenclatureId(equipmentApi.getNomenclatureIdFromRubr(equipment.getName()));
+        }
+
+        String sqlGetQueue = """
+                SELECT ore.id AS id, ore.amount
+                
+                FROM obj_request_equipments ore
+                JOIN bnd_object_rubricator bor_status ON object_id = ore.id
+                JOIN rubr_request_statuses rrs ON rrs.id = bor_status.rubr_id
+                JOIN bnd_object_object boo ON boo.secondary_object_id = ore.id
+                JOIN obj_requests obr ON obr.id = boo.main_object_id
+                JOIN bnd_object_rubricator bor_name ON bor_name.object_id = ore.id
+                JOIN rubr_equipment_nomenclatures ren ON bor_name.rubr_id = ren.id
+                
+                WHERE bor_status.type_id = 4
+                   AND rrs.id = 1
+                   AND bor_name.type_id = 2
+                   AND ren.id = ?
+                
+                ORDER BY obr.created_at""";
+
+        List<RequestEquipment> requestEquipments = jdbcTemplate.query(sqlGetQueue, requestEquipmentRowMapper(), equipment.getNomenclatureId());
+        List<RequestEquipment> updatedRequestEquipments = new ArrayList<>();
+        for (RequestEquipment re : requestEquipments) {
+            if (re.getAmount() <= equipment.getAmount()) {
+                equipment.setAmount(equipment.getAmount() - re.getAmount());
+                equipmentApi.updateEquipment(equipment, equipment.getId());
+                re.setStatusId(REQUEST_STATUS_COMPLETED);
+                re.setClosedAt(LocalDateTime.now());
+                updatedRequestEquipments.add(re);
+            }
+            else {
+                break;
+            }
+        }
+
+        if(updatedRequestEquipments.size() > 0) {
+            updateRequestEquipmentStatus(updatedRequestEquipments);
+            updateRequestStatus(updatedRequestEquipments);
+        }
+    }
+
+    private RowMapper<RequestEquipment> requestEquipmentRowMapper ()
+    {
+        return ((rs, rowNum) -> new RequestEquipment()
+                .setId(rs.getInt("id"))
+                .setAmount(rs.getInt("amount")));
+    }
+
+    private void updateRequestEquipmentStatus (List<RequestEquipment> requestEquipments) {
         String sqlInsertStatus = """
                 UPDATE bnd_object_rubricator bor
                 SET rubr_id = ?
                 WHERE bor.object_id = ?
                     AND bor.type_id = ?""";
 
-        String getStatusName = """
+        String sqlInsertRequestEquipmentClosedAt = """
+                UPDATE obj_request_equipments
+                SET closed_at = ?
+                WHERE obj_request_equipments.id = ?
+                """;
+
+        String sqlGetStatusName = """
+                SELECT rrs.name
+                FROM rubr_request_statuses rrs
+                JOIN bnd_object_rubricator bor ON bor.rubr_id = rrs.id
+                WHERE bor.object_id = ?
+                    AND bor.type_id = ?""";
+
+        for (RequestEquipment rE : requestEquipments) {
+            jdbcTemplate.update(sqlInsertStatus, rE.getStatusId(), rE.getId(), BND_REQUEST_EQUIPMENT_STATUS);
+            jdbcTemplate.update(sqlInsertRequestEquipmentClosedAt, rE.getClosedAt(), rE.getId());
+            rE.setStatusName(jdbcTemplate.queryForObject(sqlGetStatusName, String.class, rE.getId(), BND_REQUEST_EQUIPMENT_STATUS));
+        }
+    }
+
+    private void updateRequestStatus(List<RequestEquipment> requestEquipments) {
+
+        List<Integer> requestEquipmentIds = requestEquipments.stream()
+                .map(RequestEquipment::getId)
+                .collect(Collectors.toList());
+
+        String inSqlGetRequestsByRE = requestEquipmentIds.stream().map(id -> "?").collect(Collectors.joining(",", "(", ")"));
+
+        String sqlGetRequestsByRE = """
+                SELECT obr.id
+                
+                FROM obj_requests obr
+                
+                JOIN bnd_object_object boo_changed ON boo_changed.main_object_id = obr.id
+                JOIN obj_request_equipments ore_changed ON boo_changed.secondary_object_id = ore_changed.id
+                JOIN bnd_object_rubricator bor_obr ON bor_obr.object_id = obr.id
+                JOIN rubr_request_statuses rrs_obr ON rrs_obr.id = bor_obr.rubr_id
+                
+                
+                
+                WHERE boo_changed.type_id = 2
+                  AND bor_obr.type_id = 3
+                  AND bor_obr.rubr_id = 1
+                  AND rrs_obr.id = 1
+                  AND ore_changed.id in""" + inSqlGetRequestsByRE + "ORDER BY obr.created_at";
+
+        Set<Integer> requestsIds = jdbcTemplate.query(
+                        sqlGetRequestsByRE,
+                        requestEquipmentIds.toArray(),
+                        (rs, rowNum) -> {
+                            return rs.getInt("id");
+                        }).stream().collect(Collectors.toSet());
+
+        String inSql = requestsIds.stream().map(id -> "?").collect(Collectors.joining(",", "(", ")"));
+        String sqlGetREStatuses = """
+                SELECT obr.id, rrs.id as request_status_id
+                FROM obj_requests obr
+                JOIN bnd_object_object boo ON boo.main_object_id = obr.id
+                JOIN obj_request_equipments ore ON boo.secondary_object_id = ore.id
+                JOIN bnd_object_rubricator bor ON bor.object_id = ore.id
+                JOIN rubr_request_statuses rrs ON bor.rubr_id = rrs.id
+                
+                WHERE bor.type_id = 4
+                    AND boo.type_id = 2
+                    AND obr.id IN""" + inSql + "ORDER BY obr.id";
+
+        Map<Integer, Set<Integer>> requestREStatuses = jdbcTemplate.query(
+                sqlGetREStatuses,
+                requestsIds.toArray(),
+                rs -> {
+                    Map<Integer, Set<Integer>> map = new HashMap<>();
+                    while (rs.next()) {
+                        map.computeIfAbsent(rs.getInt("id"), k -> new HashSet<>()).add(rs.getInt("request_status_id"));
+                    }
+                    return map;
+                });
+
+        List<Request> requestsToUpdate = new ArrayList<>();
+
+        for (Map.Entry<Integer, Set<Integer>> entry : requestREStatuses.entrySet()) {
+            if (entry.getValue().size() == 1 && entry.getValue().contains(2)) {
+                requestsToUpdate.add(new Request()
+                        .setId(entry.getKey())
+                        .setClosedAt(LocalDateTime.now())
+                        .setStatusId(REQUEST_STATUS_COMPLETED));
+            }
+        }
+
+        for (Request request : requestsToUpdate) {
+            setRequestStatus(request);
+        }
+    }
+
+    public Request setRequestStatus(Request request) {
+        String sqlInsertStatus = """
+                UPDATE bnd_object_rubricator bor
+                SET rubr_id = ?
+                WHERE bor.object_id = ?
+                    AND bor.type_id = ?""";
+
+        String sqlInsertRequestClosedAt = """
+                UPDATE obj_requests
+                SET closed_at = ?
+                WHERE obj_requests.id = ?
+                """;
+
+        String sqlGetStatusName = """
                 SELECT rrs.name
                 FROM rubr_request_statuses rrs
                 JOIN bnd_object_rubricator bor ON bor.rubr_id = rrs.id
@@ -246,13 +387,15 @@ public class RequestApi {
                     AND bor.type_id = ?""";
 
         jdbcTemplate.update(sqlInsertStatus, request.getStatusId(), request.getId(), BND_REQUEST_STATUS);
-        request.setStatusName(jdbcTemplate.queryForObject(getStatusName, String.class, request.getId(), BND_REQUEST_STATUS));
+        jdbcTemplate.update(sqlInsertRequestClosedAt, request.getClosedAt(), request.getId());
+        request.setStatusName(jdbcTemplate.queryForObject(sqlGetStatusName, String.class, request.getId(), BND_REQUEST_STATUS));
 
-        for (RequestEquipment rE : request.getRequestEquipments()) {
-            jdbcTemplate.update(sqlInsertStatus, rE.getStatusId(), rE.getId(), BND_REQUEST_EQUIPMENT_STATUS);
-            rE.setStatusName(jdbcTemplate.queryForObject(getStatusName, String.class, rE.getId(), BND_REQUEST_EQUIPMENT_STATUS));
-        }
+
         return request;
     }
 
+    public void deleteNotTest() {
+        String sql = "DELETE FROM obj_metadata WHERE id NOT BETWEEN 1 AND 9";
+        jdbcTemplate.update(sql);
+    }
 }

@@ -10,6 +10,10 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+//TODO сделать чтобы позиция удалялась сразу, а не оставался 0
+//TODO сделать на фронте, чтобы нельзя было отправить amount <= 0
+//TODO Warning:(65, 22) Return value of the method (updateEquipment) is never used
+
 @Service
 @RequiredArgsConstructor
 public class EquipmentApi {
@@ -35,6 +39,7 @@ public class EquipmentApi {
         if (nomenclatureId == null) {
             throw new NoSuchElementException("Оборудование \"" + equipment.getName() + "\" не найдено");
         }
+        equipment.setNomenclatureId(nomenclatureId);
         if (getEquipmentFromStorage(nomenclatureId) != null) {
             throw new IllegalArgumentException ("Оборудование \"" + equipment.getName() +  "\" уже существует");
         }
@@ -51,16 +56,15 @@ public class EquipmentApi {
     }
 
     public Equipment updateEquipment(Equipment equipment, Integer id) {
-        String sql = "UPDATE obj_equipments SET amount = ? WHERE id = ?";
-        equipment.setId(id);
-        int updated = jdbcTemplate.update(sql, equipment.getAmount(), equipment.getId());
-        if (updated > 0)
-            return equipment;
-        else
-            throw new NoSuchElementException("Не найдено оборудование с id " + id);
-    }
 
-    public Equipment updateEquipment(Equipment equipment) {
+        equipment.setId(id);
+
+        if (equipment.getAmount() == 0) {
+            String sql = "DELETE FROM obj_metadata WHERE id = ?";
+            jdbcTemplate.update(sql, equipment.getId());
+            return null;
+        }
+
         String sql = "UPDATE obj_equipments SET amount = ? WHERE id = ?";
         int updated = jdbcTemplate.update(sql, equipment.getAmount(), equipment.getId());
         if (updated > 0)
@@ -77,7 +81,7 @@ public class EquipmentApi {
     }
 
     public List<Nomenclature> getNomenclatures() {
-        String sql = "select * from rubr_equipment_nomenclatures ORDER BY id";
+        String sql = "SELECT * from rubr_equipment_nomenclatures ORDER BY id";
         return jdbcTemplate.query(sql, nomenclatureRowMapper());
     }
 

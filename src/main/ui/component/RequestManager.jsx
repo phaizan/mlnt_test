@@ -34,17 +34,20 @@ const RequestManager = () => {
     };
     
     const addRequest = async () => {
-        try {
-            console.log(items);
-            const response = await axios.post('http://localhost:8080/api/request', items);
-            setRequests(prev => [...prev, response.data]);
-            setMessage(`Запрос добавлен`);
-            console.log("Данные", response.data);
+        if (!checkDuplicates(items)) {
+            try {
+                console.log(items);
+                const response = await axios.post('http://localhost:8080/api/request', items);
+                setRequests(prev => [...prev, response.data]);
+                setMessage(`Запрос добавлен`);
+                console.log("Данные", response.data);
+            } catch (e) {
+                setMessage(e?.response?.data || `Ошибка при добавлении`);
+            }
         }
-        catch (e) {
-            setMessage(e?.response?.data || `Ошибка при добавлении`);
+        else {
+            setMessage("В запросе есть дубликаты");
         }
-
     }
 
     const handleChange = (index, field, value) => {
@@ -52,6 +55,28 @@ const RequestManager = () => {
         updated[index][field] = value;
         setItems(updated);
     }
+
+    const checkDuplicates = (items) => {
+        const seen = new Set();
+        for (const item of items) {
+            if (seen.has(item.nomenclatureId)) {
+                return true; // Найден дубликат
+            }
+            seen.add(item.nomenclatureId);
+        }
+        return false; // Дубликатов нет
+    };
+
+    const deleteNotTest = async () => {
+        try {
+            await axios.delete('http://localhost:8080/api/request/test');
+            getRequests();
+        }
+        catch (e) {
+            setMessage(e?.response?.data || 'Ошибка при удалении');
+        }
+    }
+
 
     const isFormValid = items.every(item => item.name && item.amount);
 
@@ -76,6 +101,7 @@ const RequestManager = () => {
                     Создать заявку
                 </button>
             ) : null}
+            <button className={"btn btn-danger"} onClick={(deleteNotTest)}>Удалить не тестовые</button>
 
             {items.length > 0 && (
                 <div className="request-form">
@@ -154,7 +180,7 @@ const RequestManager = () => {
                             <tr key={eq.id}>
                                 {idx === 0 && (
                                     <>
-                                        <td rowSpan={req.requestEquipments.length}>{i + 1}</td>
+                                        <td rowSpan={req.requestEquipments.length}>{req.id}</td>
                                         <td rowSpan={req.requestEquipments.length}>{req.statusName}</td>
                                         <td rowSpan={req.requestEquipments.length}>
                                             {req.createdAt ? new Date(req.createdAt).toLocaleString() : '—'}
@@ -164,7 +190,8 @@ const RequestManager = () => {
                                         </td>
                                     </>
                                 )}
-                                <td>{idx + 1}</td>
+                                <td>{eq.id}</td>
+                                {/*<td>{idx + 1}</td>*/}
                                 <td>{eq.createdAt ? new Date(eq.createdAt).toLocaleString() : '—'}</td>
                                 <td>{eq.closedAt ? new Date(eq.closedAt).toLocaleString() : '—'}</td>
                                 <td>{eq.name}</td>

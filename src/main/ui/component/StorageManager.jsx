@@ -1,5 +1,6 @@
 import React, {useEffect, useState} from 'react';
 import axios from 'axios';
+import {getNomenclatures} from "./NomenclatureManager";
 
 const StorageManager = () => {
     const [equipments, setEquipments] = useState([]);
@@ -11,6 +12,7 @@ const StorageManager = () => {
     const [showAddForm, setShowAddForm] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [editingAmount, setEditingAmount] = useState(null);
+    const [nomenclatures, setNomenclatures] = useState([]);
 
     const getEquipments = async () => {
         try {
@@ -29,12 +31,15 @@ const StorageManager = () => {
                 name: equipment.name,
                 amount: equipment.amount
             });
+            console.log(response)
+            console.log(response.data)
             const newEquipment = response.data;
             setEquipments(prev => [...prev, newEquipment]);
             resetForm();
             setMessage(`"${newEquipment.name}" добавлено`);
         }
         catch (e) {
+
             setMessage(e?.response?.data || 'Ошибка при добавлении');
             if (e.response.status === 409) //если существует в списке
                 resetForm();
@@ -43,6 +48,10 @@ const StorageManager = () => {
 
     const updateEquipment = async (id, newAmount, name) => {
         try {
+            if (newAmount <= '0') {
+                setMessage("Неправильное количество")
+                return;
+            }
             const response = await axios.put(`http://localhost:8080/api/equipment/${id}`, {
                 name: name,
                 amount: newAmount
@@ -53,7 +62,12 @@ const StorageManager = () => {
             setEditingId(null);
             setEditingAmount(null);
         } catch (e) {
-            setMessage(e?.response?.data || 'Ошибка при изменении');
+            if (e.response.status === 410) {
+                setMessage(`${name} удалено`)
+                setEquipments(prev => prev.filter(eq => eq.id !== id));
+            }
+            else
+                setMessage(e?.response?.data || 'Ошибка при изменении');
         }
     };
 
@@ -85,6 +99,11 @@ const StorageManager = () => {
 
     useEffect(() => {
         getEquipments();
+        const fetchNomenclatures = async () => {
+            const data = await getNomenclatures();
+            setNomenclatures(data);
+        };
+        fetchNomenclatures();
     }, []);
 
     return (
@@ -103,13 +122,17 @@ const StorageManager = () => {
 
             {showAddForm && (
                 <div className="form-row">
-                    <input
-                        type="text"
-                        className="input"
+                    <select
                         value={equipment.name}
+                        required
                         onChange={e => setEquipmentName(e.target.value)}
-                        placeholder="Название ТМЦ"
-                    />
+                    >
+                        <option value="">Выберите ТМЦ</option>
+                        {
+                            nomenclatures.map(n => (
+                                <option key={n.id} value={n.name}>{n.name}</option>
+                            ))}
+                    </select>
                     <input
                         type="text"
                         className="input"
