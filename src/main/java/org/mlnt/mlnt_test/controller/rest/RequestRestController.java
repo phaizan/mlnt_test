@@ -1,6 +1,7 @@
 package org.mlnt.mlnt_test.controller.rest;
 
 
+import io.swagger.annotations.Api;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.mlnt.mlnt_test.api.RequestApi;
@@ -13,6 +14,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+
+@Api ("Контроллер для работы с заявками")
 @RestController
 @RequestMapping("/api/request")
 @RequiredArgsConstructor
@@ -31,13 +34,15 @@ public class RequestRestController {
     public ResponseEntity<?> addRequest(@RequestBody List<RequestEquipment> requestEquipment) {
         try {
             Request added = requestApi.addRequest(requestEquipment);
-            requestApi.processRequestOnRequestAdd(added);
-            return ResponseEntity.status(HttpStatus.CREATED).body(added);
+            return ResponseEntity.ok(added);
         }
         catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
         catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+        catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
         }
     }

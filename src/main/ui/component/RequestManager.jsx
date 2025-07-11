@@ -7,11 +7,6 @@ const RequestManager = () => {
     const [requests, setRequests] = useState([
 
     ]);
-    const [request, setRequest] = useState(
-        {
-
-        }
-    );
     const [items, setItems] = useState([]);
     const [nomenclatures, setNomenclatures] = useState([]);
     const [message, setMessage] = useState('');
@@ -20,15 +15,12 @@ const RequestManager = () => {
         try {
             const response = await axios.get('http://localhost:8080/api/request');
             setRequests(response.data);
-            console.log(response.data);
         }
         catch (e) {
             console.error('Ошибка при загрузке заявок: ')
         }
     }
 
-    
-    
     const addItem = () => {
         setItems(prev => [...prev, { id:'', name: '', amount: ''}]);
     };
@@ -40,6 +32,7 @@ const RequestManager = () => {
                 const response = await axios.post('http://localhost:8080/api/request', items);
                 setRequests(prev => [...prev, response.data]);
                 setMessage(`Запрос добавлен`);
+                setItems([]);
                 console.log("Данные", response.data);
             } catch (e) {
                 setMessage(e?.response?.data || `Ошибка при добавлении`);
@@ -77,9 +70,7 @@ const RequestManager = () => {
         }
     }
 
-
     const isFormValid = items.every(item => item.name && item.amount);
-
 
     useEffect(() => {
         getRequests();
@@ -158,14 +149,14 @@ const RequestManager = () => {
                 <table className="table">
                     <thead>
                     <tr>
-                        <th rowSpan="2">ID заявки</th>
+                        <th rowSpan="2">№ заявки</th>
                         <th rowSpan="2">Статус</th>
                         <th rowSpan="2">Создана</th>
                         <th rowSpan="2">Закрыта</th>
                         <th colSpan="6">Оборудование</th>
                     </tr>
                     <tr>
-                        <th>ID</th>
+                        <th>Номер</th>
                         <th>Создана</th>
                         <th>Закрыта</th>
                         <th>Название</th>
@@ -191,11 +182,10 @@ const RequestManager = () => {
                                     </>
                                 )}
                                 <td>{eq.id}</td>
-                                {/*<td>{idx + 1}</td>*/}
-                                <td>{eq.createdAt ? new Date(eq.createdAt).toLocaleString() : '—'}</td>
-                                <td>{eq.closedAt ? new Date(eq.closedAt).toLocaleString() : '—'}</td>
                                 <td>{eq.name}</td>
                                 <td>{eq.amount}</td>
+                                <td>{eq.createdAt ? new Date(eq.createdAt).toLocaleString() : '—'}</td>
+                                <td>{eq.closedAt ? new Date(eq.closedAt).toLocaleString() : '—'}</td>
                                 <td>{eq.statusName}</td>
                             </tr>
                         ))

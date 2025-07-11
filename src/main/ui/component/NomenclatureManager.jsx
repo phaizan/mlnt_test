@@ -13,9 +13,13 @@ const NomenclatureManager = () => {
         try {
             const response = await axios.post('http://localhost:8080/api/nomenclature', { name: newName });
             const newNomenclature = response.data;
-            setNomenclatures(prev => [...prev, newNomenclature]);
+            setNomenclatures(prev => {
+                const updated = [...prev, newNomenclature];
+                updated.sort((a, b) => a.name.localeCompare(b.name));
+                return updated;
+            });
             setNewName('');
-            setMessage(`Номенклатура "${newNomenclature.name} добавлена`)
+            setMessage(`Номенклатура "${newNomenclature.name}" добавлена`)
         }
         catch (e) {
             if (e.response.status === 409)
@@ -32,7 +36,7 @@ const NomenclatureManager = () => {
             });
             const updNomenclature = response.data;
             setNomenclatures(prev => prev.map (n => n.id === id ? updNomenclature : n));
-            setMessage(`"${name}" успешно обновлено`);
+            setMessage(`"${updNomenclature.name}" успешно обновлено`);
             setEditingId(null);
             setNewName('');
         }
@@ -48,7 +52,7 @@ const NomenclatureManager = () => {
         try {
             await axios.delete(`http://localhost:8080/api/nomenclature/${id}`);
             setNomenclatures(prev => prev.filter(eq => eq.id !== id));
-            setMessage(`Номенклатура "${name}" удалено`);
+            setMessage(`Номенклатура "${name}" удалена`);
         }
         catch (e) {
             setMessage(e?.response?.data || 'Ошибка при удалении');
@@ -136,7 +140,7 @@ export default NomenclatureManager;
 
 export const getNomenclatures = async () => {
     try {
-        const response = await axios.get('http://localhost:8080/api/nomenclature');
+        const response = await axios.post('http://localhost:8080/api/nomenclature');
         return response.data;
     } catch (error) {
         console.error('Ошибка при загрузке номенклатур', error);

@@ -2,6 +2,8 @@ import React, {useEffect, useState} from 'react';
 import axios from 'axios';
 import {getNomenclatures} from "./NomenclatureManager";
 
+//TODO handleChange (?)
+
 const StorageManager = () => {
     const [equipments, setEquipments] = useState([]);
     const [equipment, setEquipment] = useState({
@@ -25,18 +27,34 @@ const StorageManager = () => {
 
     const addEquipment = async () => {
         if (!equipment.name.trim() || !equipment.amount.trim()) return;
-
+        if (equipment.amount <= '0') {
+            setMessage("Неправильное количество");
+            return;
+        }
         try {
             const response = await axios.post('http://localhost:8080/api/equipment', {
                 name: equipment.name,
                 amount: equipment.amount
             });
-            console.log(response)
-            console.log(response.data)
             const newEquipment = response.data;
-            setEquipments(prev => [...prev, newEquipment]);
+
+            if (newEquipment.amount !== 0){
+                setEquipments(prev => {
+                    const updated = [...prev, newEquipment];
+                    updated.sort((a, b) => a.name.localeCompare(b.name));
+                    return updated;
+                });
+                if (newEquipment.amount === Number(equipment.amount)) {
+                    setMessage(`"${newEquipment.name}" добавлено`);
+                }
+                else {
+                    setMessage(`Часть оборудования "${equipment.name}" было отданы заявке(-ам) в очереди при добавлении`);
+                }
+            }
+            else {
+                setMessage(`Всё оборудование "${equipment.name}" было отдано заявке(-ам) в очереди при добавлении`);
+            }
             resetForm();
-            setMessage(`"${newEquipment.name}" добавлено`);
         }
         catch (e) {
 
@@ -49,7 +67,7 @@ const StorageManager = () => {
     const updateEquipment = async (id, newAmount, name) => {
         try {
             if (newAmount <= '0') {
-                setMessage("Неправильное количество")
+                setMessage(`Неправильное количество у "${name}"`)
                 return;
             }
             const response = await axios.put(`http://localhost:8080/api/equipment/${id}`, {
@@ -57,8 +75,17 @@ const StorageManager = () => {
                 amount: newAmount
             });
             const updatedEquipment = response.data;
-            setEquipments(prev => prev.map(eq => eq.id === id ? updatedEquipment : eq));
-            setMessage(`"${name}" успешно обновлено`);
+            if (updatedEquipment.amount !== 0) {
+                setEquipments(prev => prev.map(eq => eq.name === name ? updatedEquipment : eq));
+                if (Number(newAmount) === updatedEquipment.amount)
+                    setMessage(`"${name}" успешно обновлено`);
+                else
+                    setMessage(`Часть оборудования "${updatedEquipment.name}" было отдано заявке(-ам) в очереди при обновлении`);
+            }
+            else {
+                setEquipments(prev => prev.filter(eq => eq.name !== name));
+                setMessage(`Всё оборудование "${updatedEquipment.name}" было отдано заявке(-ам) в очереди при обновлении`);
+            }
             setEditingId(null);
             setEditingAmount(null);
         } catch (e) {
@@ -137,7 +164,10 @@ const StorageManager = () => {
                         type="text"
                         className="input"
                         value={equipment.amount}
-                        onChange={e => setEquipmentAmount(e.target.value)}
+                        onChange={e => {
+                            setEquipmentAmount(e.target.value)
+                        }}
+                        inputMode="numeric"
                         placeholder="Количество"
                     />
                     <button className="btn" onClick={addEquipment}>Добавить</button>
@@ -174,7 +204,7 @@ const StorageManager = () => {
                             <td>
                                 {editingId === e.id ? (
                                     <input
-                                        type="text"
+                                        type="number"
                                         className="input"
                                         value={editingAmount}
                                         onChange={ev => setEditingAmount(ev.target.value)}

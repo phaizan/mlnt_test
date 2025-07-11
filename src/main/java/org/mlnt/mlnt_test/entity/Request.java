@@ -6,8 +6,6 @@ import lombok.experimental.Accessors;
 import java.time.LocalDateTime;
 import java.util.List;
 
-//TODO нужно ли поле status name?
-
 /**
  * ИО заявка
  */

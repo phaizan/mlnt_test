@@ -14,9 +14,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
-
 //TODO посмотреть предупреждения
-//TODO сделать так, чтобы при добавлении новой заявки она не отбирала у тех, что в очереди
 
 @Service
 @RequiredArgsConstructor
@@ -163,55 +161,17 @@ public class RequestApi {
                 jdbcTemplate.update(sqlInsertBndRequestEquipment_RubricatorStatus, requestEquipment.getId(), requestEquipment.getStatusId());
                 jdbcTemplate.update(sqlInsertBndRequestEquipment_RubricatorName, requestEquipment.getId(), requestEquipment.getNomenclatureId());
             }
+
+            List<Equipment> storage = equipmentApi.getEquipments();
+
+            for (Equipment eq : storage) {
+                processRequestsOnEquipmentUpdate(eq);
+            }
+
             return request;
         } catch (DataAccessException e) {
             throw new IllegalStateException("Ошибка при доступе к базе данных" + e);
         }
-    }
-
-    public Request processRequestOnRequestAdd (Request request) {
-
-        List<Integer> nomenclaturesIds = new ArrayList<>();
-        for (RequestEquipment requestEquipment : request.getRequestEquipments()) {
-            nomenclaturesIds.add(requestEquipment.getNomenclatureId());
-        }
-        String inSql = nomenclaturesIds.stream().map(id -> "?").collect(Collectors.joining(",", "(", ")"));
-
-        String sql = """
-                SELECT oe.id AS id, ren.id AS nomenclatureId, oe.amount 
-                
-                FROM obj_equipments oe
-                JOIN bnd_object_rubricator bor ON bor.object_id = oe.id
-                JOIN bnd_object_rubricator_type bort ON bor.type_id = bort.id
-                JOIN rubr_equipment_nomenclatures ren ON ren.id = bor.rubr_id
-                
-                WHERE bort.name = 'Номенклатура ТМЦ'
-                    AND bor.rubr_list_id = 2
-                    AND ren.id IN""" + inSql;
-
-        Map<Integer, Equipment> equipment = jdbcTemplate.query(
-                sql,
-                nomenclaturesIds.toArray(),
-                rs -> {
-                    Map<Integer, Equipment> map = new HashMap<>();
-                    while (rs.next()) {
-                        Equipment eq = new Equipment()
-                                .setId(rs.getInt("id"))
-                                .setNomenclatureId(rs.getInt("nomenclatureId"))
-                                .setAmount(rs.getInt("amount"));
-                        map.put(eq.getNomenclatureId(), eq);
-                    }
-                    return map;
-                }
-        );
-
-        List<Equipment> storage = equipmentApi.getEquipment();
-
-        for (Equipment eq : storage) {
-            processRequestsOnEquipmentUpdate(eq);
-        }
-
-        return request;
     }
 
     public void processRequestsOnEquipmentUpdate (Equipment equipment) {
@@ -253,7 +213,7 @@ public class RequestApi {
             }
         }
 
-        if(updatedRequestEquipments.size() > 0) {
+        if(!updatedRequestEquipments.isEmpty()) {
             updateRequestEquipmentStatus(updatedRequestEquipments);
             updateRequestStatus(updatedRequestEquipments);
         }
@@ -297,7 +257,7 @@ public class RequestApi {
 
         List<Integer> requestEquipmentIds = requestEquipments.stream()
                 .map(RequestEquipment::getId)
-                .collect(Collectors.toList());
+                .toList();
 
         String inSqlGetRequestsByRE = requestEquipmentIds.stream().map(id -> "?").collect(Collectors.joining(",", "(", ")"));
 
@@ -322,9 +282,7 @@ public class RequestApi {
         Set<Integer> requestsIds = jdbcTemplate.query(
                         sqlGetRequestsByRE,
                         requestEquipmentIds.toArray(),
-                        (rs, rowNum) -> {
-                            return rs.getInt("id");
-                        }).stream().collect(Collectors.toSet());
+                        (rs, rowNum) -> rs.getInt("id")).stream().collect(Collectors.toSet());
 
         String inSql = requestsIds.stream().map(id -> "?").collect(Collectors.joining(",", "(", ")"));
         String sqlGetREStatuses = """

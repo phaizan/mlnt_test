@@ -10,17 +10,20 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.NoSuchElementException;
 
-//TODO сделать чтобы позиция удалялась сразу, а не оставался 0
-//TODO сделать на фронте, чтобы нельзя было отправить amount <= 0
-//TODO Warning:(65, 22) Return value of the method (updateEquipment) is never used
-
+/**
+ * АПИ для работы с ИО ТМЦ и рубрикатором Номенклатура
+ */
 @Service
 @RequiredArgsConstructor
 public class EquipmentApi {
 
     private final JdbcTemplate jdbcTemplate;
 
-    public List<Equipment> getEquipment() {
+
+    /**
+     *  Получение списка остатков на складе
+     */
+    public List<Equipment> getEquipments() {
         String sql = """
                 SELECT oe.id, ren.name, oe.amount FROM obj_equipments oe
                 
@@ -30,10 +33,16 @@ public class EquipmentApi {
                 JOIN rubr_equipment_nomenclatures ren ON ren.id = bor.rubr_id
                 
                 WHERE bort.name = 'Номенклатура ТМЦ'
-                ORDER BY oe.id""";
+                ORDER BY ren.name""";
         return jdbcTemplate.query(sql, equipmentRowMapper());
     }
 
+    /**
+     * Добавление ТМЦ на склад
+     *
+     * @param equipment ТМЦ
+     * @return ТМЦ
+     */
     public Equipment addEquipment(Equipment equipment) {
         Integer nomenclatureId = getNomenclatureIdFromRubr(equipment.getName());
         if (nomenclatureId == null) {
@@ -55,15 +64,15 @@ public class EquipmentApi {
         return equipment;
     }
 
+    /**
+     * Обновление количества
+     * @param equipment ТМЦ
+     * @param id Уникальный идентификатор
+     * @return ТМЦ
+     */
     public Equipment updateEquipment(Equipment equipment, Integer id) {
 
         equipment.setId(id);
-
-        if (equipment.getAmount() == 0) {
-            String sql = "DELETE FROM obj_metadata WHERE id = ?";
-            jdbcTemplate.update(sql, equipment.getId());
-            return null;
-        }
 
         String sql = "UPDATE obj_equipments SET amount = ? WHERE id = ?";
         int updated = jdbcTemplate.update(sql, equipment.getAmount(), equipment.getId());
@@ -79,14 +88,18 @@ public class EquipmentApi {
         if (deleted == 0)
             throw new NoSuchElementException("Не найдено оборудование с id " + id);
     }
+    /**
+     *  Получение списка номенклатур
+     */
 
     public List<Nomenclature> getNomenclatures() {
-        String sql = "SELECT * from rubr_equipment_nomenclatures ORDER BY id";
+        String sql = "SELECT * from rubr_equipment_nomenclatures ORDER BY name";
         return jdbcTemplate.query(sql, nomenclatureRowMapper());
     }
 
     public Nomenclature addNomenclature(Nomenclature nomenclature) {
         String sql = "INSERT INTO rubr_equipment_nomenclatures (name) VALUES (?) RETURNING id";
+        nomenclature.setName(normalizeName(nomenclature.getName()));
         Integer nomenclatureId = jdbcTemplate.queryForObject(sql, Integer.class, nomenclature.getName());
         nomenclature.setId(nomenclatureId);
         return nomenclature;
@@ -94,6 +107,7 @@ public class EquipmentApi {
 
     public Nomenclature updateNomenclature(Nomenclature nomenclature, Integer id) {
         String sql = "UPDATE rubr_equipment_nomenclatures SET name = ? WHERE id = ?";
+        nomenclature.setName(normalizeName(nomenclature.getName()));
         nomenclature.setId(id);
         int updated = jdbcTemplate.update(sql, nomenclature.getName(), nomenclature.getId());
         if (updated > 0) {
@@ -144,6 +158,12 @@ public class EquipmentApi {
             return null;
         }
     }
+
+    public String normalizeName(String name) {
+        name = name.trim().toLowerCase();
+        return name.substring(0, 1).toUpperCase() + name.substring(1);
+    }
+
     private RowMapper<Equipment> equipmentRowMapper() {
         return (rs, rowNum) -> new Equipment()
                 .setId(rs.getInt("id"))
