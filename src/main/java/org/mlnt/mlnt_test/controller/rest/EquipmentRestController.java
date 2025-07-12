@@ -1,8 +1,10 @@
 package org.mlnt.mlnt_test.controller.rest;
 
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.mlnt.mlnt_test.api.EquipmentApi;
 import org.mlnt.mlnt_test.api.RequestApi;
+import org.mlnt.mlnt_test.api.UserApi;
 import org.mlnt.mlnt_test.entity.Equipment;
 import org.mlnt.mlnt_test.entity.Nomenclature;
 import org.springframework.dao.DuplicateKeyException;
@@ -18,7 +20,7 @@ import io.swagger.annotations.Api;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
 public class EquipmentRestController {
 
     private final EquipmentApi equipmentApi;
@@ -34,7 +36,7 @@ public class EquipmentRestController {
         try {
             Equipment added = equipmentApi.addEquipment(equipment);
             requestApi.processRequestsOnEquipmentUpdate(added);
-            return ResponseEntity.status(HttpStatus.CREATED).body(added);
+            return ResponseEntity.ok(added);
         }
         catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
@@ -54,7 +56,7 @@ public class EquipmentRestController {
             Equipment updated = equipmentApi.updateEquipment(equipment, id);
             requestApi.processRequestsOnEquipmentUpdate(updated);
             if (updated != null) {
-                return ResponseEntity.status(HttpStatus.OK).body(updated);
+                return ResponseEntity.ok(updated);
             }
             else {
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();

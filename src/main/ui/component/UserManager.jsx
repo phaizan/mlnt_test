@@ -1,19 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+axios.defaults.withCredentials = true;
 
-const UserManager = () => {
-    const [user, setUser] = useState();
+const UserManager = ({message, setMessage, user, setUser}) => {
     const [showRegistrationFrom, setShowRegistrationFrom] = useState(false);
-    const [showAuthFrom, setShowAuthFrom] = useState(false);
-    const [registrRequest, setRegistrRequest] = useState({});
+    const [showLoginFrom, setShowLoginFrom] = useState(false);
     const [loginRequest, setLoginRequest] = useState({});
     const [roles, setRoles] = useState([]);
-    const [message, setMessage] = useState('');
-    const auth = async () => {
-        console.log(loginRequest)
+    const login = async () => {
         try {
-            const response = await axios.post('http://localhost:8080/api/user/login', loginRequest);
+            const response = await axios.post(
+                'http://localhost:8080/api/user/login',
+                loginRequest
+            );
             setUser(response.data);
+            setLoginRequest({});
+            setShowLoginFrom(false);
             setMessage(`Пользователь ${response.data.name} авторизован`);
         }
         catch (e) {
@@ -22,7 +24,8 @@ const UserManager = () => {
     }
     const registr = async () => {
         try {
-            const response = await axios.post('http://localhost:8080/api/user/registration', registrRequest);
+            console.log(user);
+            const response = await axios.post('http://localhost:8080/api/user/registration', user);
             setUser(response.data);
             setMessage(`Пользователь ${response.data.name} зарегистрирован`);
         }
@@ -34,21 +37,44 @@ const UserManager = () => {
     const handleLoginChange = (field, value) => {
         setLoginRequest(prev => ({...prev, [field]: value}))
     }
-    const handleRegistrChange = (field, value) => {
-        setRegistrRequest(prev => ({...prev, [field]: value}))
+
+    const handleUserChange = (field, value) => {
+        setUser(prev => ({...prev, [field]: value}))
+    }
+
+    const fetchRoles = async () => {
+        try {
+            const response = await axios.get('http://localhost:8080/api/user/roles');
+            setRoles(response.data);
+        }
+        catch (e) {
+            console.error('Ошибка при загрузке ролей', e);
+            return [];
+        }
     }
 
     return (
         <div className="body">
             <button className="btn" onClick={() => {
-                setShowAuthFrom(true);
-                setShowRegistrationFrom(false);
+                if (!user) {
+                    setShowLoginFrom(true);
+                    setShowRegistrationFrom(false);
+                }
+                else {
+                    setMessage("Вы уже авторизованы");
+                }
             }}>Авторизоваться</button>
 
             <button className="btn" onClick={() => {
-                setShowRegistrationFrom(true);
-                setShowAuthFrom(false);
+                if (!user) {
+                    setShowRegistrationFrom(true);
+                    setShowLoginFrom(false);
+                }
+                else {
+                    setMessage("Вы не можете зарегистрироваться, потому что вы авторизованы");
+                }
             }}>Зарегистрироваться</button>
+
 
             {showRegistrationFrom &&
                 <div>
@@ -57,30 +83,33 @@ const UserManager = () => {
                         <input
                             type="text"
                             required
-                            value={user.name}
-                            onChange={e => handleRegistrChange("name", e.target.value)}
+                            value={user?.name}
+                            onChange={e => handleUserChange("name", e.target.value)}
+                            placeholder="Имя"
+                        />
+                        <input
+                            type="text"
+                            required
+                            value={user?.login}
+                            onChange={e => handleUserChange("login", e.target.value)}
                             placeholder="Логин"
                         />
                         <input
                             type="text"
                             required
-                            value={user.login}
-                            onChange={e => handleRegistrChange("login", e.target.value)}
-                            placeholder="Логин"
-                        />
-                        <input
-                            type="text"
-                            required
-                            value={user.password}
-                            onChange={e => handleRegistrChange("password", e.target.value)}
+                            value={user?.password}
+                            onChange={e => handleUserChange("password", e.target.value)}
                             placeholder="Пароль"
                         />
-                        <select>
-                            value={user.role}
-                            onChange={e => handleRegistrChange("role", e.target.value)}
+                        <select
+                            value={user?.roleId}
+                            onChange={e => {
+                            handleUserChange("roleId", e.target.value)
+                        }}
+                        >
                             <option value="">Выберите роль пользователя</option>
                             {roles.map(r => (
-                                <option key={r.id} value={r.name}>{r.name}</option>
+                                <option key={r.id} value={r.id}>{r.name}</option>
                             ))}
                         </select>
                         <button className="btn" onClick={registr}>Зарегистрироваться</button>
@@ -89,7 +118,7 @@ const UserManager = () => {
             }
 
 
-            {showAuthFrom &&
+            {showLoginFrom &&
                 <div>
                     <h2>Авторизация</h2>
                     <div className="form-row">
@@ -107,17 +136,24 @@ const UserManager = () => {
                             onChange={e => handleLoginChange("password", e.target.value)}
                             placeholder="Пароль"
                         />
-                        <button className="btn" onClick={auth}>Авторизоваться</button>
+                        <button className="btn" onClick={login}>Авторизоваться</button>
                     </div>
                 </div>
             }
-            {message && <p>{message}</p>}
 
         </div>
     )
-
-
-
-
 }
+
+/*export const getUserData = async () => {
+    try {
+        const response = await axios.get('http://localhost:8080/api/user/data');
+        return response.data;
+    }
+    catch (e) {
+        console.error("Пользователь не авторизован");
+        return null;
+    }
+}*/
+
 export default UserManager;

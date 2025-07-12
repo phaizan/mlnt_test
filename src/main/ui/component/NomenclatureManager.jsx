@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+axios.defaults.withCredentials = true;
 
-const NomenclatureManager = () => {
+const NomenclatureManager = ({ user, setMessage }) => {
     const [nomenclatures, setNomenclatures] = useState([]);
     const [newName, setNewName] = useState('');
-    const [message, setMessage] = useState('');
     const [editingId, setEditingId] = useState(null);
     const [editName, setEditName] = useState('');
 
@@ -81,7 +81,7 @@ const NomenclatureManager = () => {
                 <button className="btn" onClick={addNomenclature}>Добавить</button>
             </div>
 
-            {message && <p>{message}</p>}
+           {/* {message && <p>{message}</p>}*/}
 
             {
                 nomenclatures.length === 0 ? (
@@ -140,7 +140,7 @@ export default NomenclatureManager;
 
 export const getNomenclatures = async () => {
     try {
-        const response = await axios.post('http://localhost:8080/api/nomenclature');
+        const response = await axios.get('http://localhost:8080/api/nomenclature');
         return response.data;
     } catch (error) {
         console.error('Ошибка при загрузке номенклатур', error);

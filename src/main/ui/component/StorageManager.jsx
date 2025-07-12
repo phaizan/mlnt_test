@@ -1,16 +1,16 @@
 import React, {useEffect, useState} from 'react';
 import axios from 'axios';
 import {getNomenclatures} from "./NomenclatureManager";
+axios.defaults.withCredentials = true;
 
 //TODO handleChange (?)
 
-const StorageManager = () => {
+const StorageManager = ({ user, setMessage }) => {
     const [equipments, setEquipments] = useState([]);
     const [equipment, setEquipment] = useState({
         name: '',
         amount: ''
     })
-    const [message, setMessage] = useState('');
     const [showAddForm, setShowAddForm] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [editingAmount, setEditingAmount] = useState(null);
@@ -125,6 +125,7 @@ const StorageManager = () => {
 
 
     useEffect(() => {
+        console.log(user);
         getEquipments();
         const fetchNomenclatures = async () => {
             const data = await getNomenclatures();
@@ -178,11 +179,11 @@ const StorageManager = () => {
                 </div>
             )}
 
-            {message && (
+            {/*{message && (
                 <div className="message">
                     <p>{message} <button className="btn btn-danger" onClick={() => setMessage('')}>X</button></p>
                 </div>
-            )}
+            )}*/}
 
             {equipments.length === 0 ? (
                 <p>Склад пустой</p>

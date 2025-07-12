@@ -18,8 +18,11 @@ import java.util.NoSuchElementException;
 public class EquipmentApi {
 
     private final JdbcTemplate jdbcTemplate;
+    private final DbManager dbManager;
 
-
+    private static final int OBJ_EQUIPMENT_TYPE_ID = 2;
+    private static final int RUBR_EQUIPMENT_NOMENCLATURES_LIST_ID = 2;
+    private static final int BND_O_R_EQUIPMENT_NOMENCLATURES_TYPE_ID = 2;
     /**
      *  Получение списка остатков на складе
      */
@@ -52,15 +55,11 @@ public class EquipmentApi {
         if (getEquipmentFromStorage(nomenclatureId) != null) {
             throw new IllegalArgumentException ("Оборудование \"" + equipment.getName() +  "\" уже существует");
         }
-        String sqlInsertMeta = "INSERT INTO obj_metadata (obj_type_id) VALUES (2) RETURNING id";
-        Integer objectId = jdbcTemplate.queryForObject(sqlInsertMeta, Integer.class);
+        Integer objectId = dbManager.createObjectMeta(OBJ_EQUIPMENT_TYPE_ID);
         equipment.setId(objectId);
         String sqlInsertEquip = "INSERT INTO obj_equipments (id, amount) VALUES (?, ?)";
         jdbcTemplate.update(sqlInsertEquip, equipment.getId(), equipment.getAmount());
-        String sqlInsertBnd = """
-                                INSERT INTO bnd_object_rubricator (object_id, rubr_id, rubr_list_id, type_id)
-                                VALUES (?, ?, 2, 2)""";
-        jdbcTemplate.update(sqlInsertBnd, equipment.getId(), nomenclatureId);
+        dbManager.createBndObjectRubricator(equipment.getId(), nomenclatureId, RUBR_EQUIPMENT_NOMENCLATURES_LIST_ID, BND_O_R_EQUIPMENT_NOMENCLATURES_TYPE_ID);
         return equipment;
     }
 

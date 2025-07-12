@@ -1,23 +1,22 @@
-import React, {useEffect, useState} from 'react';
+import React, { useEffect, useState} from 'react';
 import axios from 'axios';
 import { getNomenclatures } from "./NomenclatureManager";
+//import { getUserData } from "./UserManager";
+axios.defaults.withCredentials = true;
 
 
-const RequestManager = () => {
-    const [requests, setRequests] = useState([
-
-    ]);
+const RequestManager = ({ user, setMessage }) => {
+    const [requests, setRequests] = useState([]);
     const [items, setItems] = useState([]);
     const [nomenclatures, setNomenclatures] = useState([]);
-    const [message, setMessage] = useState('');
 
     const getRequests = async () => {
         try {
+            console.log("Получаю список заявок...");
             const response = await axios.get('http://localhost:8080/api/request');
             setRequests(response.data);
-        }
-        catch (e) {
-            console.error('Ошибка при загрузке заявок: ')
+        } catch (e) {
+            console.error('Ошибка при загрузке заявок: ', e)
         }
     }
 
@@ -26,10 +25,11 @@ const RequestManager = () => {
     };
     
     const addRequest = async () => {
+
         if (!checkDuplicates(items)) {
             try {
                 console.log(items);
-                const response = await axios.post('http://localhost:8080/api/request', items);
+                const response = await axios.post(`http://localhost:8080/api/request`, items);
                 setRequests(prev => [...prev, response.data]);
                 setMessage(`Запрос добавлен`);
                 setItems([]);
@@ -73,11 +73,19 @@ const RequestManager = () => {
     const isFormValid = items.every(item => item.name && item.amount);
 
     useEffect(() => {
-        getRequests();
         const fetchNomenclatures = async () => {
             const data = await getNomenclatures();
             setNomenclatures(data);
         };
+        /*const fetchUserData = async () => {
+            const data = await getUserData();
+            setUser(data);
+            if (data && data.id)
+                getRequests();
+            console.log(data);
+        }
+        fetchUserData();*/
+        getRequests();
         fetchNomenclatures();
     }, []);
 
@@ -86,8 +94,8 @@ const RequestManager = () => {
             <h2>Управление заявками</h2>
 
             {items.length === 0 ? (
-                <button className="btn" onClick={() => {
-                    addItem();
+                <button className="btn" disabled={!(user && user.id)} onClick={() => {
+                        addItem();
                 }}>
                     Создать заявку
                 </button>
@@ -137,62 +145,126 @@ const RequestManager = () => {
                 </div>
             )}
 
-            {message && (
+            {/*{message && (
                 <div className="message">
                     <p>{message} <button className="btn btn-danger" onClick={() => setMessage('')}>X</button></p>
                 </div>
-            )}
+            )}*/}
 
-            {requests.length === 0 ? (
+            {user ? (
+                    <>
+                    {requests.length === 0 ? (
+                        <p>Список заявок пуст</p>
+                    ) : (
+                        <table className="table">
+                            <thead>
+                            <tr>
+                                <th rowSpan="2">№ заявки</th>
+                                <th rowSpan="2">Статус</th>
+                                <th rowSpan="2">Создана</th>
+                                <th rowSpan="2">Закрыта</th>
+                                <th colSpan="6">Оборудование</th>
+                            </tr>
+                            <tr>
+                                <th>Номер</th>
+                                <th>Создана</th>
+                                <th>Закрыта</th>
+                                <th>Название</th>
+                                <th>Количество</th>
+                                <th>Статус</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {requests.map((req, i) => (
+
+                                req.requestEquipments?.map((eq, idx) => (
+                                    <tr key={eq.id}>
+                                        {idx === 0 && (
+                                            <>
+                                                <td rowSpan={req.requestEquipments.length}>{req.id}</td>
+                                                <td rowSpan={req.requestEquipments.length}>{req.statusName}</td>
+                                                <td rowSpan={req.requestEquipments.length}>
+                                                    {req.createdAt ? new Date(req.createdAt).toLocaleString() : '—'}
+                                                </td>
+                                                <td rowSpan={req.requestEquipments.length}>
+                                                    {req.closedAt ? new Date(req.closedAt).toLocaleString() : '—'}
+                                                </td>
+                                            </>
+                                        )}
+                                        <td>{eq.id}</td>
+                                        <td>{eq.name}</td>
+                                        <td>{eq.amount}</td>
+                                        <td>{eq.createdAt ? new Date(eq.createdAt).toLocaleString() : '—'}</td>
+                                        <td>{eq.closedAt ? new Date(eq.closedAt).toLocaleString() : '—'}</td>
+                                        <td>{eq.statusName}</td>
+                                    </tr>
+                                ))
+                            ))}
+                            </tbody>
+                        </table>
+                    )}
+                    </>)
+                : <p>Вы не авторизованы</p>
+            }
+
+            {/*{requests.length === 0 ? (
                 <p>Список заявок пуст</p>
             ) : (
-                <table className="table">
-                    <thead>
-                    <tr>
-                        <th rowSpan="2">№ заявки</th>
-                        <th rowSpan="2">Статус</th>
-                        <th rowSpan="2">Создана</th>
-                        <th rowSpan="2">Закрыта</th>
-                        <th colSpan="6">Оборудование</th>
-                    </tr>
-                    <tr>
-                        <th>Номер</th>
-                        <th>Создана</th>
-                        <th>Закрыта</th>
-                        <th>Название</th>
-                        <th>Количество</th>
-                        <th>Статус</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {requests.map((req, i) => (
+                <div>
+                    {user ? (
+                    <table className="table">
+                        <thead>
+                        <tr>
+                            <th rowSpan="2">№ заявки</th>
+                            <th rowSpan="2">Статус</th>
+                            <th rowSpan="2">Создана</th>
+                            <th rowSpan="2">Закрыта</th>
+                            <th colSpan="6">Оборудование</th>
+                        </tr>
+                        <tr>
+                            <th>Номер</th>
+                            <th>Создана</th>
+                            <th>Закрыта</th>
+                            <th>Название</th>
+                            <th>Количество</th>
+                            <th>Статус</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {requests.map((req, i) => (
 
-                        req.requestEquipments?.map((eq, idx) => (
-                            <tr key={eq.id}>
-                                {idx === 0 && (
-                                    <>
-                                        <td rowSpan={req.requestEquipments.length}>{req.id}</td>
-                                        <td rowSpan={req.requestEquipments.length}>{req.statusName}</td>
-                                        <td rowSpan={req.requestEquipments.length}>
-                                            {req.createdAt ? new Date(req.createdAt).toLocaleString() : '—'}
-                                        </td>
-                                        <td rowSpan={req.requestEquipments.length}>
-                                            {req.closedAt ? new Date(req.closedAt).toLocaleString() : '—'}
-                                        </td>
-                                    </>
-                                )}
-                                <td>{eq.id}</td>
-                                <td>{eq.name}</td>
-                                <td>{eq.amount}</td>
-                                <td>{eq.createdAt ? new Date(eq.createdAt).toLocaleString() : '—'}</td>
-                                <td>{eq.closedAt ? new Date(eq.closedAt).toLocaleString() : '—'}</td>
-                                <td>{eq.statusName}</td>
-                            </tr>
-                        ))
-                    ))}
-                    </tbody>
-                </table>
-            )}
+                            req.requestEquipments?.map((eq, idx) => (
+                                <tr key={eq.id}>
+                                    {idx === 0 && (
+                                        <>
+                                            <td rowSpan={req.requestEquipments.length}>{req.id}</td>
+                                            <td rowSpan={req.requestEquipments.length}>{req.statusName}</td>
+                                            <td rowSpan={req.requestEquipments.length}>
+                                                {req.createdAt ? new Date(req.createdAt).toLocaleString() : '—'}
+                                            </td>
+                                            <td rowSpan={req.requestEquipments.length}>
+                                                {req.closedAt ? new Date(req.closedAt).toLocaleString() : '—'}
+                                            </td>
+                                        </>
+                                    )}
+                                    <td>{eq.id}</td>
+                                    <td>{eq.name}</td>
+                                    <td>{eq.amount}</td>
+                                    <td>{eq.createdAt ? new Date(eq.createdAt).toLocaleString() : '—'}</td>
+                                    <td>{eq.closedAt ? new Date(eq.closedAt).toLocaleString() : '—'}</td>
+                                    <td>{eq.statusName}</td>
+                                </tr>
+                            ))
+                        ))}
+                        </tbody>
+                    </table>
+                )
+                : (
+                    <div>Вы не авторизованы</div>
+                )}
+                </div>
+
+            )}*/}
         </div>
     );
 }

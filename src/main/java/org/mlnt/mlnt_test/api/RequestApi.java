@@ -9,10 +9,12 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+
 
 //TODO посмотреть предупреждения
 
@@ -22,6 +24,7 @@ public class RequestApi {
 
     private final JdbcTemplate jdbcTemplate;
     private final EquipmentApi equipmentApi;
+    private final DbManager dbManager;
 
     final int OBJ_TYPE_REQUEST = 3;
     final int OBJ_TYPE_REQUEST_EQUIPMENT = 4;
@@ -30,7 +33,9 @@ public class RequestApi {
     final int BND_REQUEST_STATUS = 3;
     final int BND_REQUEST_EQUIPMENT_STATUS = 4;
 
-    public List<Request> getRequests() {
+    public List<Request> getRequests(int userId) {
+
+        Integer userRoleId = dbManager.getUserRoleId(userId);
 
         String sql = """
             SELECT
@@ -71,52 +76,28 @@ public class RequestApi {
             JOIN bnd_object_rubricator_type bort_status ON bort_status.id = bor_status.type_id
             JOIN rubr_request_statuses rrs_equipment ON bor_status.rubr_id = rrs_equipment.id
             
+            JOIN bnd_object_object boo_user ON obr.id = boo_user.secondary_object_id
+            JOIN obj_users ou ON ou.id = boo_user.main_object_id
+            
+            
             WHERE
                 bort_request.name = 'Статус заявки' AND
                 boot.name = 'Заявка содержит позицию' AND
                 bort_name.name = 'Номенклатура ТМЦ' AND
-                bort_status.name = 'Статус позиции в заявке'
+                bort_status.name = 'Статус позиции в заявке' AND
+                boo_user.type_id = 1""";
 
-            ORDER BY ore.id""";
+        if (userRoleId == 1) {
+           sql += " AND ou.id = " + userId;
+        }
 
-        return jdbcTemplate.query(sql, rs -> {
-            Map<Integer, Request> requestMap = new LinkedHashMap<>();
-            while (rs.next()) {
-                int requestId = rs.getInt("request_id");
-                Request request = requestMap.get(requestId);
-                if (request == null) {
-                    request = new Request()
-                            .setId(requestId)
-                            .setCreatedAt(rs.getTimestamp("request_created").toLocalDateTime())
-                            .setClosedAt(rs.getTimestamp("request_closed") != null
-                                    ? rs.getTimestamp("request_closed").toLocalDateTime()
-                                    : null)
-                            .setStatusId(rs.getInt("request_status_id"))
-                            .setStatusName(rs.getString("request_status_name"))
-                            .setRequestEquipments(new ArrayList<>());
-                    requestMap.put(requestId, request);
-                }
+        sql += " ORDER BY ore.id";
 
-                RequestEquipment equipment = new RequestEquipment()
-                        .setId(rs.getInt("equipment_id"))
-                        .setNomenclatureId(rs.getInt("nomenclature_id"))
-                        .setName(rs.getString("nomenclature_name"))
-                        .setAmount(rs.getInt("amount"))
-                        .setStatusId(rs.getInt("equipment_status_id"))
-                        .setStatusName(rs.getString("equipment_status_name"))
-                        .setCreatedAt(rs.getTimestamp("equipment_created").toLocalDateTime())
-                        .setClosedAt(rs.getTimestamp("equipment_closed") != null
-                                ? rs.getTimestamp("equipment_closed").toLocalDateTime()
-                                : null);
-
-                request.getRequestEquipments().add(equipment);
-            }
-            return new ArrayList<>(requestMap.values());
-        });
+        return jdbcTemplate.query(sql, this::mapRequests);
     }
 
     @Transactional
-    public Request addRequest (List<RequestEquipment> requestEquipments) {
+    public Request addRequest (List<RequestEquipment> requestEquipments, int id) {
         try {
             Request request = new Request()
                     .setCreatedAt(LocalDateTime.now())
@@ -137,6 +118,9 @@ public class RequestApi {
 
             jdbcTemplate.update(sqlInsertRequest, request.getId(), request.getCreatedAt());
             jdbcTemplate.update(sqlInsertBndRequest_RubricatorStatus, request.getId(), request.getStatusId());
+
+            String sqlInsertBndUserRequest = "INSERT INTO bnd_object_object (main_object_id, secondary_object_id, type_id) VALUES (?, ?, 1);";
+            jdbcTemplate.update(sqlInsertBndUserRequest, id, request.getId());
 
             String sqlInsertRequestEquipment = "INSERT INTO obj_request_equipments (id, amount) VALUES (?, ?);";
             String sqlInsertBndRequest_RequestEquipment = "INSERT INTO bnd_object_object (main_object_id, secondary_object_id, type_id) VALUES (?, ?, 2);";
@@ -356,4 +340,40 @@ public class RequestApi {
         String sql = "DELETE FROM obj_metadata WHERE id NOT BETWEEN 1 AND 9";
         jdbcTemplate.update(sql);
     }
+
+    private List<Request> mapRequests (ResultSet rs) throws SQLException {
+        Map<Integer, Request> requestMap = new LinkedHashMap<>();
+        while (rs.next()) {
+            int requestId = rs.getInt("request_id");
+            Request request = requestMap.get(requestId);
+            if (request == null) {
+                request = new Request()
+                        .setId(requestId)
+                        .setCreatedAt(rs.getTimestamp("request_created").toLocalDateTime())
+                        .setClosedAt(rs.getTimestamp("request_closed") != null
+                                ? rs.getTimestamp("request_closed").toLocalDateTime()
+                                : null)
+                        .setStatusId(rs.getInt("request_status_id"))
+                        .setStatusName(rs.getString("request_status_name"))
+                        .setRequestEquipments(new ArrayList<>());
+                requestMap.put(requestId, request);
+            }
+
+            RequestEquipment equipment = new RequestEquipment()
+                    .setId(rs.getInt("equipment_id"))
+                    .setNomenclatureId(rs.getInt("nomenclature_id"))
+                    .setName(rs.getString("nomenclature_name"))
+                    .setAmount(rs.getInt("amount"))
+                    .setStatusId(rs.getInt("equipment_status_id"))
+                    .setStatusName(rs.getString("equipment_status_name"))
+                    .setCreatedAt(rs.getTimestamp("equipment_created").toLocalDateTime())
+                    .setClosedAt(rs.getTimestamp("equipment_closed") != null
+                            ? rs.getTimestamp("equipment_closed").toLocalDateTime()
+                            : null);
+
+            request.getRequestEquipments().add(equipment);
+        }
+        return new ArrayList<>(requestMap.values());
+    }
+
 }
