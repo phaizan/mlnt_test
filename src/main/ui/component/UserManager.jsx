@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
 axios.defaults.withCredentials = true;
 
-const UserManager = ({message, setMessage, user, setUser}) => {
+const UserManager = ({ setMessage, user, setUser}) => {
     const [showRegistrationFrom, setShowRegistrationFrom] = useState(false);
     const [showLoginFrom, setShowLoginFrom] = useState(false);
     const [loginRequest, setLoginRequest] = useState({});
@@ -40,17 +40,6 @@ const UserManager = ({message, setMessage, user, setUser}) => {
 
     const handleUserChange = (field, value) => {
         setUser(prev => ({...prev, [field]: value}))
-    }
-
-    const fetchRoles = async () => {
-        try {
-            const response = await axios.get('http://localhost:8080/api/user/roles');
-            setRoles(response.data);
-        }
-        catch (e) {
-            console.error('Ошибка при загрузке ролей', e);
-            return [];
-        }
     }
 
     return (
@@ -145,7 +134,7 @@ const UserManager = ({message, setMessage, user, setUser}) => {
     )
 }
 
-/*export const getUserData = async () => {
+export const getUserData = async () => {
     try {
         const response = await axios.get('http://localhost:8080/api/user/data');
         return response.data;
@@ -154,6 +143,6 @@ const UserManager = ({message, setMessage, user, setUser}) => {
         console.error("Пользователь не авторизован");
         return null;
     }
-}*/
+}
 
 export default UserManager;

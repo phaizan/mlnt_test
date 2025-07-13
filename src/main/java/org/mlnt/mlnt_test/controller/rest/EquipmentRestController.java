@@ -1,10 +1,8 @@
 package org.mlnt.mlnt_test.controller.rest;
 
-import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.mlnt.mlnt_test.api.EquipmentApi;
 import org.mlnt.mlnt_test.api.RequestApi;
-import org.mlnt.mlnt_test.api.UserApi;
 import org.mlnt.mlnt_test.entity.Equipment;
 import org.mlnt.mlnt_test.entity.Nomenclature;
 import org.springframework.dao.DuplicateKeyException;
@@ -45,7 +43,6 @@ public class EquipmentRestController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
         catch (Exception e) {
-            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Внутренняя ошибка сервера");
         }
     }
@@ -55,12 +52,8 @@ public class EquipmentRestController {
         try {
             Equipment updated = equipmentApi.updateEquipment(equipment, id);
             requestApi.processRequestsOnEquipmentUpdate(updated);
-            if (updated != null) {
-                return ResponseEntity.ok(updated);
-            }
-            else {
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-            }
+            return ResponseEntity.ok(updated);
+
         }
         catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
@@ -123,7 +116,10 @@ public class EquipmentRestController {
     @DeleteMapping("/nomenclature/{id}")
     public ResponseEntity<String> deleteNomenclature(@PathVariable Integer id) {
         try {
+            Equipment equipment = equipmentApi.getEquipmentFromStorage(id);
             equipmentApi.deleteNomenclature(id);
+            if (equipment != null)
+                equipmentApi.deleteEquipment(equipment.getId());
             return ResponseEntity.ok().build();
         }
         catch (NoSuchElementException e) {

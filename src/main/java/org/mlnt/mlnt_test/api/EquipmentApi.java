@@ -72,7 +72,10 @@ public class EquipmentApi {
     public Equipment updateEquipment(Equipment equipment, Integer id) {
 
         equipment.setId(id);
-
+        if (equipment.getAmount() == 0) {
+            deleteEquipment(equipment.getId());
+            return null;
+        }
         String sql = "UPDATE obj_equipments SET amount = ? WHERE id = ?";
         int updated = jdbcTemplate.update(sql, equipment.getAmount(), equipment.getId());
         if (updated > 0)
@@ -137,7 +140,7 @@ public class EquipmentApi {
         }
     }
 
-    private Equipment getEquipmentFromStorage(int nomenclatureId) {
+    public Equipment getEquipmentFromStorage(int nomenclatureId) {
         String sql = """
                 SELECT oe.id, oe.amount
                 FROM obj_equipments oe

@@ -53,6 +53,7 @@ public class UserRestController {
     @PostMapping("/registration")
     public ResponseEntity<?> doRegistration(@RequestBody User user) {
         userApi.register(user);
+
         return ResponseEntity.ok(user);
     }
 

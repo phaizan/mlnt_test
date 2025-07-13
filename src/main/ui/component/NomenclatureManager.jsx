@@ -2,14 +2,17 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 axios.defaults.withCredentials = true;
 
-const NomenclatureManager = ({ user, setMessage }) => {
+const NomenclatureManager = ({ message, setMessage, messageId, setMessageId, setNomenclatureChanged }) => {
     const [nomenclatures, setNomenclatures] = useState([]);
     const [newName, setNewName] = useState('');
     const [editingId, setEditingId] = useState(null);
     const [editName, setEditName] = useState('');
 
     const addNomenclature = async () => {
-        if (!newName.trim()) return;
+        if (!newName.trim() || newName === '') {
+            setMessage("Введите название номенклатуры");
+            return;
+        }
         try {
             const response = await axios.post('http://localhost:8080/api/nomenclature', { name: newName });
             const newNomenclature = response.data;
@@ -20,13 +23,18 @@ const NomenclatureManager = ({ user, setMessage }) => {
             });
             setNewName('');
             setMessage(`Номенклатура "${newNomenclature.name}" добавлена`)
+            setNomenclatureChanged(true);
         }
         catch (e) {
-            if (e.response.status === 409)
+            if (e.response.status === 409) {
                 setMessage(e?.response?.data);
-            else
+            }
+            else {
                 setMessage(e?.response?.data || 'Ошибка при изменении');
+            }
         }
+        setMessageId(1);
+
     };
 
     const updateNomenclature = async (id, name) => {
@@ -37,14 +45,20 @@ const NomenclatureManager = ({ user, setMessage }) => {
             const updNomenclature = response.data;
             setNomenclatures(prev => prev.map (n => n.id === id ? updNomenclature : n));
             setMessage(`"${updNomenclature.name}" успешно обновлено`);
+            setMessageId(1);
             setEditingId(null);
             setNewName('');
+            setNomenclatureChanged(true);
         }
         catch (e) {
-            if (e.response.status === 409)
+            if (e.response.status === 409) {
                 setMessage(e?.response?.data);
-            else
+                setMessageId(1);
+            }
+            else {
                 setMessage(e?.response?.data || 'Ошибка при изменении');
+                setMessageId(1);
+            }
         }
     }
 
@@ -53,9 +67,12 @@ const NomenclatureManager = ({ user, setMessage }) => {
             await axios.delete(`http://localhost:8080/api/nomenclature/${id}`);
             setNomenclatures(prev => prev.filter(eq => eq.id !== id));
             setMessage(`Номенклатура "${name}" удалена`);
+            setNomenclatureChanged(true);
+            setMessageId(1);
         }
         catch (e) {
             setMessage(e?.response?.data || 'Ошибка при удалении');
+            setMessageId(1);
         }
     }
 
@@ -71,6 +88,7 @@ const NomenclatureManager = ({ user, setMessage }) => {
         <div className="body">
             <h2>Номенклатура ТМЦ</h2>
 
+
             <div className="form-row">
                 <input
                     type="text"
@@ -81,7 +99,14 @@ const NomenclatureManager = ({ user, setMessage }) => {
                 <button className="btn" onClick={addNomenclature}>Добавить</button>
             </div>
 
-           {/* {message && <p>{message}</p>}*/}
+            {message && messageId === 1 && (
+                <div className="message">
+                    <p>{message} <button className="btn btn-danger" onClick={() => {
+                        setMessage('')
+                        setMessageId(null);
+                    }}>X</button></p>
+                </div>
+            )}
 
             {
                 nomenclatures.length === 0 ? (

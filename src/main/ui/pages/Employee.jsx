@@ -1,14 +1,20 @@
-import React, { useEffect, useState} from 'react';
-import axios from "axios";
-import { useNavigate } from "react-router-dom";
+import React from 'react';
+import StorageManager from "../component/StorageManager";
+import RequestManager from "../component/RequestManager";
 
-const Employee = () => {
-
-
-
+const Employee = ({ user, message, setMessage, messageId, setMessageId, nomenclatureChanded, setNomenclatureChanged, storageChanged, setStorageChanged, requestCreated, setRequestCreated }) => {
     return (
         <>
-            <h2>Привет из эмплои</h2>
+            <StorageManager user={user}
+                            message={message} setMessage={setMessage} messageId={messageId} setMessageId={setMessageId}
+                            nomenclatureChanded={nomenclatureChanded} setNomenclatureChanged={setNomenclatureChanged}
+                            setStorageChanged={setStorageChanged}
+                            requestCreated={requestCreated} setRequestCreated={setRequestCreated}></StorageManager>
+            <RequestManager user={user}
+                            message={message} setMessage={setMessage} messageId={messageId} setMessageId={setMessageId}
+                            nomenclatureChanded={nomenclatureChanded} setNomenclatureChanged={setNomenclatureChanged}
+                            storageChanged={storageChanged} setStorageChanged={setStorageChanged}
+                            requestCreated={requestCreated} setRequestCreated={setRequestCreated}></RequestManager>
         </>
     )
 }

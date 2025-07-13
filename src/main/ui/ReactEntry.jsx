@@ -1,11 +1,8 @@
 import React, { useEffect, useState} from 'react';
 import ReactDOM from 'react-dom/client';
-import NomenclatureManager from "./component/NomenclatureManager";
-import {BrowserRouter, Link, Route, Router, Routes, useNavigate} from "react-router-dom";
-import StorageManager from "./component/StorageManager";
-import RequestManager from "./component/RequestManager";
+import {BrowserRouter, Route, Routes, useNavigate} from "react-router-dom";
 import './styles/Styles.css'
-import UserManager, {getUserData} from "./component/UserManager";
+import {getUserData} from "./pages/Auth";
 import axios from 'axios';
 import Auth from "./pages/Auth";
 import Employee from "./pages/Employee";
@@ -17,27 +14,31 @@ const root = ReactDOM.createRoot(document.getElementById('root'));
 
 const ReactEntry = () => {
 
+    const [storageChanged, setStorageChanged] = useState(false);
+    const [nomenclatureChanged, setNomenclatureChanged] = useState(false);
+    const [requestCreated, setRequestCreated] = useState(false);
     const [user, setUser] = useState({});
     const [hello, setHello] = useState('');
     const [message, setMessage] = useState('');
+    const [messageId, setMessageId] = useState(null);
     const navigate = useNavigate();
 
-    /*useEffect(() => {
+    useEffect(() => {
         const fetchUserData = async () => {
             const data = await getUserData();
             setUser(data);
             console.log(data);
         }
         fetchUserData();
-    }, [message]);
-
-    */
+    }, [hello]);
 
     const logout = async () => {
         try {
             await axios.post('http://localhost:8080/api/user/logout')
             setUser({});
-            setMessage("Вы вышли из системы");
+            setHello('');
+            setMessage('');
+            setMessageId(null);
             navigate("/")
         }
         catch (e) {
@@ -54,10 +55,22 @@ const ReactEntry = () => {
                 </div>
             )}
                 <Routes>
-                    <Route path="/" element={<Auth setUser={setUser} setMessage={setMessage} setHello={setHello}/>}/>
-                    <Route path="/employee" element={<Employee user={user} setMessage={setMessage}/>}/>
-                    <Route path="/storekeeper" element={<Storekeeper user={user} setMessage={setMessage}/>}/>
+                    <Route path="/" element={<Auth user={user} setUser={setUser}
+                                                   message={message} setMessage={setMessage}
+                                                   setHello={setHello}/>}/>
+                    <Route path="/employee" element={<Employee user={user}
+                                                               message={message} setMessage={setMessage} messageId={messageId} setMessageId={setMessageId}
+                                                               nomenclatureChanded={nomenclatureChanged} setNomenclatureChanged={setNomenclatureChanged}
+                                                               storageChanged={storageChanged} setStorageChanged={setStorageChanged}
+                                                               requestCreated={requestCreated} setRequestCreated={setRequestCreated}/>}/>
+
+                    <Route path="/storekeeper" element={<Storekeeper user={user}
+                                                                     message={message} setMessage={setMessage} messageId={messageId} setMessageId={setMessageId}
+                                                                     nomenclatureChanded={nomenclatureChanged} setNomenclatureChanged={setNomenclatureChanged}
+                                                                     storageChanged={storageChanged} setStorageChanged={setStorageChanged}
+                                                                     requestCreated={requestCreated} setRequestCreated={setRequestCreated}/>}/>
                 </Routes>
+
 
 
 

@@ -1,18 +1,25 @@
-import React, { useEffect, useState} from 'react';
-import axios from "axios";
-import { useNavigate } from "react-router-dom";
-import NomenclatureManager, {getNomenclatures} from "../component/NomenclatureManager";
+import React from 'react';
+import NomenclatureManager from "../component/NomenclatureManager";
 import StorageManager from "../component/StorageManager";
 import RequestManager from "../component/RequestManager";
 
-const Storekeeper = ({setMessage, user}) => {
+const Storekeeper = ({ user, message, setMessage, messageId, setMessageId, nomenclatureChanded, setNomenclatureChanged, storageChanged, setStorageChanged, requestCreated, setRequestCreated }) => {
 
 
     return (
         <>
-            <StorageManager user={user} setMessage={setMessage}></StorageManager>
-            <NomenclatureManager user={user} setMessage={setMessage}></NomenclatureManager>
-            <RequestManager user={user} setMessage={setMessage}></RequestManager>
+            <NomenclatureManager message={message} setMessage={setMessage} messageId={messageId} setMessageId={setMessageId}
+                                 setNomenclatureChanged={setNomenclatureChanged}></NomenclatureManager>
+            <StorageManager user={user}
+                            message={message} setMessage={setMessage} messageId={messageId} setMessageId={setMessageId}
+                            nomenclatureChanded={nomenclatureChanded} setNomenclatureChanged={setNomenclatureChanged}
+                            setStorageChanged={setStorageChanged}
+                            requestCreated={requestCreated} setRequestCreated={setRequestCreated}></StorageManager>
+            <RequestManager user={user}
+                            message={message} setMessage={setMessage} messageId={messageId} setMessageId={setMessageId}
+                            nomenclatureChanded={nomenclatureChanded} setNomenclatureChanged={setNomenclatureChanged}
+                            storageChanged={storageChanged} setStorageChanged={setStorageChanged}
+                            requestCreated={requestCreated} setRequestCreated={setRequestCreated}></RequestManager>
         </>
     )
 }
