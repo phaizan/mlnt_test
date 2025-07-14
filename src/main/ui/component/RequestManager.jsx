@@ -1,7 +1,6 @@
 import React, { useEffect, useState} from 'react';
 import axios from 'axios';
 import { getNomenclatures } from "./NomenclatureManager";
-//import { getUserData } from "./UserManager";
 axios.defaults.withCredentials = true;
 
 
