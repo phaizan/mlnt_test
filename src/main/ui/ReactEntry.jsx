@@ -7,6 +7,9 @@ import axios from 'axios';
 import Auth from "./pages/Auth";
 import Employee from "./pages/Employee";
 import Storekeeper from "./pages/Storekeeper";
+import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
+import {faInfoCircle} from "@fortawesome/free-solid-svg-icons";
+
 
 axios.defaults.withCredentials = true;
 
@@ -135,6 +138,23 @@ const ReactEntry = () => {
 
     );
 };
+
+export  const getMessageIcon = (messageId) => {
+    let color;
+
+    switch (messageId % 10) {
+        case 1:
+            color = 'red';
+            break;
+        case 2:
+            color = 'orange'
+            break;
+        case 3:
+            color = 'blue'
+            break;
+    }
+    return <FontAwesomeIcon icon={faInfoCircle} style={{ color: color }} />
+}
 
 
 root.render(

@@ -1,6 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import axios from 'axios';
 import {getNomenclatures} from "./NomenclatureManager";
+import {getMessageIcon} from "../ReactEntry";
 axios.defaults.withCredentials = true;
 
 const StorageManager = ({ user, message, setMessage, messageId, setMessageId, nomenclatureChanded, setNomenclatureChanged, setStorageChanged, requestCreated, setRequestCreated }) => {
@@ -28,7 +29,7 @@ const StorageManager = ({ user, message, setMessage, messageId, setMessageId, no
         if (!equipment.name.trim() || !equipment.amount.trim()) return;
         if (equipment.amount <= '0') {
             setMessage("Неправильное количество");
-            setMessageId(2);
+            setMessageId(22);
             return;
         }
         try {
@@ -46,16 +47,16 @@ const StorageManager = ({ user, message, setMessage, messageId, setMessageId, no
                 });
                 if (newEquipment.amount === Number(equipment.amount)) {
                     setMessage(`"${newEquipment.name}" добавлено`);
-                    setMessageId(2);
+                    setMessageId(23);
                 }
                 else {
                     setMessage(`Часть оборудования "${equipment.name}" было отданы заявке(-ам) в очереди при добавлении`);
-                    setMessageId(2);
+                    setMessageId(23);
                 }
             }
             else {
                 setMessage(`Всё оборудование "${equipment.name}" было отдано заявке(-ам) в очереди при добавлении`);
-                setMessageId(2);
+                setMessageId(23);
             }
             setStorageChanged(true);
             resetForm();
@@ -63,7 +64,7 @@ const StorageManager = ({ user, message, setMessage, messageId, setMessageId, no
         catch (e) {
 
             setMessage(e?.response?.data || 'Ошибка при добавлении');
-            setMessageId(2);
+            setMessageId(21);
             if (e.response.status === 409) //если существует в списке
                 resetForm();
         }
@@ -73,7 +74,7 @@ const StorageManager = ({ user, message, setMessage, messageId, setMessageId, no
         try {
             if (newAmount <= '0') {
                 setMessage(`Неправильное количество у "${name}"`)
-                setMessageId(2);
+                setMessageId(22);
                 return;
             }
             const response = await axios.put(`http://localhost:8080/api/equipment/${id}`, {
@@ -85,17 +86,17 @@ const StorageManager = ({ user, message, setMessage, messageId, setMessageId, no
                 setEquipments(prev => prev.map(eq => eq.name === name ? updatedEquipment : eq));
                 if (Number(newAmount) === updatedEquipment.amount) {
                     setMessage(`"${name}" успешно обновлено`);
-                    setMessageId(2);
+                    setMessageId(23);
                 }
                 else {
                     setMessage(`Часть оборудования "${updatedEquipment.name}" было отдано заявке(-ам) в очереди при обновлении`);
-                    setMessageId(2);
+                    setMessageId(23);
                 }
             }
             else {
                 setEquipments(prev => prev.filter(eq => eq.name !== name));
                 setMessage(`Всё оборудование "${updatedEquipment.name}" было отдано заявке(-ам) в очереди при обновлении`);
-                setMessageId(2);
+                setMessageId(23);
             }
             setEditingId(null);
             setEditingAmount(null);
@@ -104,11 +105,11 @@ const StorageManager = ({ user, message, setMessage, messageId, setMessageId, no
             if (e.response.status === 410) {
                 setEquipments(prev => prev.filter(eq => eq.id !== id));
                 setMessage(`${name} удалено`)
-                setMessageId(2);
+                setMessageId(23);
             }
             else {
                 setMessage(e?.response?.data || 'Ошибка при изменении');
-                setMessageId(2);
+                setMessageId(21);
             }
         }
     };
@@ -118,11 +119,11 @@ const StorageManager = ({ user, message, setMessage, messageId, setMessageId, no
             await axios.delete(`http://localhost:8080/api/equipment/${id}`);
             setEquipments(prev => prev.filter(eq => eq.id !== id));
             setMessage(`Оборудование "${name}" удалено`);
-            setMessageId(2);
+            setMessageId(23);
         }
         catch (e) {
             setMessage(e?.response?.data || 'Ошибка при удалении');
-            setMessageId(2);
+            setMessageId(21);
         }
     }
 
@@ -166,12 +167,17 @@ const StorageManager = ({ user, message, setMessage, messageId, setMessageId, no
     return (
         <div className="body">
             <h2>Список остатков на складе</h2>
-            {message && messageId === 2 && (
+            {message && Math.floor(messageId / 10) === 2 && (
                 <div className="message">
-                    <p>{message} <button className="btn btn-danger" onClick={() => {
-                        setMessage('')
-                        setMessageId(2);
-                    }}>X</button></p>
+                    <p>
+                        {message}
+                        <button className="btn btn-danger" onClick={() => {
+                            setMessage('')
+                            setMessageId(null);
+                            }}>X
+                        </button>
+                        {getMessageIcon(messageId)}
+                    </p>
                 </div>
             )}
 
@@ -257,6 +263,8 @@ const StorageManager = ({ user, message, setMessage, messageId, setMessageId, no
                                         ) : (
                                             <button className="btn" onClick={() => {
                                                 setShowAddForm(false);
+                                                setMessage('');
+                                                setMessageId(null);
                                                 setEditingAmount(e.amount);
                                                 setEditingId(e.id);
                                             }}>Изменить</button>

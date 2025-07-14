@@ -2,7 +2,9 @@ import React, { useEffect, useState} from 'react';
 import axios from 'axios';
 import { getNomenclatures } from "./NomenclatureManager";
 axios.defaults.withCredentials = true;
-
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faCircle, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
+import {getMessageIcon} from "../ReactEntry";
 
 const RequestManager = ({ user, message, setMessage, messageId, setMessageId, nomenclatureChanded, setNomenclatureChanged, storageChanged, setStorageChanged, requestCreated, setRequestCreated }) => {
     const [requests, setRequests] = useState([]);
@@ -24,28 +26,30 @@ const RequestManager = ({ user, message, setMessage, messageId, setMessageId, no
     };
     
     const addRequest = async () => {
-
         if (!checkDuplicates(items)) {
             if (isFormValid)
                 try {
                     console.log(items);
                     const response = await axios.post(`http://localhost:8080/api/request`, items);
+                    setMessageId(33);
                     setMessage(`Запрос добавлен`);
-                    setMessageId(3);
                     setRequestCreated(true);
                     setItems([]);
                     console.log("Данные", response.data);
                 } catch (e) {
                     setMessage(e?.response?.data || `Ошибка при добавлении`);
+                    setMessageId(31);
                 }
             else {
                 setMessage("Поля не заполнены или введено неправильное количество")
+                setMessageId(32);
             }
         }
         else {
             setMessage("В запросе есть дубликаты");
+            setMessageId(32);
         }
-        setMessageId(3);
+        console.log(messageId, messageId / 10, messageId % 10);
 
     }
 
@@ -72,21 +76,31 @@ const RequestManager = ({ user, message, setMessage, messageId, setMessageId, no
         }
         catch (e) {
             setMessage(e?.response?.data || 'Ошибка при удалении');
-            setMessageId(3);
+            setMessageId(31);
         }
     }
 
     const isFormValid = items.every(item => item.name && item.amount > 0);
 
-    /*useEffect(() => {
-        const fetchNomenclatures = async () => {
-            const data = await getNomenclatures();
-            setNomenclatures(data);
-        };
-        getRequests();
-        fetchNomenclatures();
-        setStorageChanged(false);
-    }, [storageChanged]);*/
+    const setDate = (date) => {
+        return date ? new Date(date).toLocaleString('ru-RU', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'
+    }
+
+    const getStatusIcon = (status) => {
+        let color;
+        switch (status) {
+            case 'Принята':
+                color = 'orange';
+                break;
+            case 'Исполнена':
+                color = 'green';
+                break;
+            default:
+                color = 'red';
+                break;
+        }
+        return <FontAwesomeIcon icon={faCircle} style={{ color: color }} />
+    }
 
     useEffect(() => {
         const fetchNomenclatures = async () => {
@@ -163,12 +177,13 @@ const RequestManager = ({ user, message, setMessage, messageId, setMessageId, no
                 </div>
             )}
 
-            {message && messageId === 3 &&(
+            {message && Math.floor(messageId / 10) === 3 &&(
                 <div className="message">
                     <p>{message} <button className="btn btn-danger" onClick={() => {
                         setMessage('')
                         setMessageId(null);
-                    }}>X</button></p>
+                    }}>X</button>{getMessageIcon(messageId)}
+                    </p>
                 </div>
             )}
 
@@ -181,17 +196,17 @@ const RequestManager = ({ user, message, setMessage, messageId, setMessageId, no
                             <thead>
                             <tr>
                                 <th rowSpan="2">№ заявки</th>
-                                <th rowSpan="2">Статус</th>
+                                <th colSpan="5">Оборудование</th>
                                 <th rowSpan="2">Создана</th>
                                 <th rowSpan="2">Закрыта</th>
-                                <th colSpan="6">Оборудование</th>
+                                <th rowSpan="2">Статус</th>
                             </tr>
                             <tr>
                                 <th>Номер</th>
-                                <th>Создана</th>
-                                <th>Закрыта</th>
                                 <th>Название</th>
                                 <th>Количество</th>
+                                {/*<th>Создана</th>*/}
+                                <th>Закрыта</th>
                                 <th>Статус</th>
                             </tr>
                             </thead>
@@ -203,21 +218,23 @@ const RequestManager = ({ user, message, setMessage, messageId, setMessageId, no
                                         {idx === 0 && (
                                             <>
                                                 <td rowSpan={req.requestEquipments.length}>{i + 1}</td>
-                                                <td rowSpan={req.requestEquipments.length}>{req.statusName}</td>
-                                                <td rowSpan={req.requestEquipments.length}>
-                                                    {req.createdAt ? new Date(req.createdAt).toLocaleString() : '—'}
-                                                </td>
-                                                <td rowSpan={req.requestEquipments.length}>
-                                                    {req.closedAt ? new Date(req.closedAt).toLocaleString() : '—'}
-                                                </td>
                                             </>
                                         )}
                                         <td>{idx + 1}</td>
                                         <td>{eq.name}</td>
                                         <td>{eq.amount}</td>
-                                        <td>{eq.createdAt ? new Date(eq.createdAt).toLocaleString() : '—'}</td>
-                                        <td>{eq.closedAt ? new Date(eq.closedAt).toLocaleString() : '—'}</td>
-                                        <td>{eq.statusName}</td>
+                                        {/*<td>{eq.createdAt ? new Date(eq.createdAt).toLocaleString() : '—'}</td>*/}
+                                        <td>{setDate(eq.closedAt)}</td>
+                                        <td>{getStatusIcon(eq.statusName)}</td>
+                                        {idx === 0 && (
+                                            <>
+                                                <td rowSpan={req.requestEquipments.length}>
+                                                    {setDate(req.createdAt)}</td>
+                                                <td rowSpan={req.requestEquipments.length}>
+                                                    {setDate(req.closedAt)}</td>
+                                                <td rowSpan={req.requestEquipments.length}>{getStatusIcon(req.statusName)}</td>
+                                            </>
+                                        )}
                                     </tr>
                                 ))
                             ))}
