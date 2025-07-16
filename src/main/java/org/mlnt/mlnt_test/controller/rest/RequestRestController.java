@@ -10,16 +10,12 @@ import org.mlnt.mlnt_test.api.UserApi;
 import org.mlnt.mlnt_test.dto.UserDTO;
 import org.mlnt.mlnt_test.entity.Request;
 import org.mlnt.mlnt_test.entity.RequestEquipment;
-import org.mlnt.mlnt_test.entity.User;
-import org.springframework.data.relational.core.sql.In;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.NoSuchElementException;
-
-//TODO понять нужно ли userDTO и что в session присваивать
 
 @Api ("Контроллер для работы с заявками")
 @RestController

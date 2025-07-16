@@ -1,10 +1,11 @@
 import React, {useEffect, useState} from 'react';
 import axios from 'axios';
 import {getNomenclatures} from "./NomenclatureManager";
-import {getMessageIcon} from "../ReactEntry";
+import {getButtonIcon, resetMessage, showMessage} from "../ReactEntry";
+import {faEraser, faFloppyDisk, faPencil, faTrash} from "@fortawesome/free-solid-svg-icons";
 axios.defaults.withCredentials = true;
 
-const StorageManager = ({ user, message, setMessage, messageId, setMessageId, nomenclatureChanded, setNomenclatureChanged, setStorageChanged, requestCreated, setRequestCreated }) => {
+const StorageManager = ({ user, message, setMessage, messageId, setMessageId, nomenclatureChanged, setNomenclatureChanged, setStorageChanged, requestCreated, setRequestCreated }) => {
     const [equipments, setEquipments] = useState([]);
     const [equipment, setEquipment] = useState({
         name: '',
@@ -26,12 +27,12 @@ const StorageManager = ({ user, message, setMessage, messageId, setMessageId, no
     };
 
     const addEquipment = async () => {
-        if (!equipment.name.trim() || !equipment.amount.trim()) return;
-        if (equipment.amount <= '0') {
-            setMessage("Неправильное количество");
+        if (!equipment.name.trim() || !equipment.amount.trim()) {
+            setMessage("Заполните все поля");
             setMessageId(22);
             return;
         }
+
         try {
             const response = await axios.post('http://localhost:8080/api/equipment', {
                 name: equipment.name,
@@ -46,7 +47,7 @@ const StorageManager = ({ user, message, setMessage, messageId, setMessageId, no
                     return updated;
                 });
                 if (newEquipment.amount === Number(equipment.amount)) {
-                    setMessage(`"${newEquipment.name}" добавлено`);
+                    setMessage(`Добавлено "${newEquipment.name}"`);
                     setMessageId(23);
                 }
                 else {
@@ -115,6 +116,9 @@ const StorageManager = ({ user, message, setMessage, messageId, setMessageId, no
     };
 
     const deleteEquipment = async (id, name) => {
+        if (!window.confirm(`Вы уверены, что хотите удалить "${name}"?`)) {
+            return;
+        }
         try {
             await axios.delete(`http://localhost:8080/api/equipment/${id}`);
             setEquipments(prev => prev.filter(eq => eq.id !== id));
@@ -157,7 +161,7 @@ const StorageManager = ({ user, message, setMessage, messageId, setMessageId, no
         };
         fetchNomenclatures();
         setNomenclatureChanged(false);
-    }, [nomenclatureChanded])
+    }, [nomenclatureChanged])
 
     useEffect(() => {
         getEquipments();
@@ -167,19 +171,7 @@ const StorageManager = ({ user, message, setMessage, messageId, setMessageId, no
     return (
         <div className="body">
             <h2>Список остатков на складе</h2>
-            {message && Math.floor(messageId / 10) === 2 && (
-                <div className="message">
-                    <p>
-                        {message}
-                        <button className="btn btn-danger" onClick={() => {
-                            setMessage('')
-                            setMessageId(null);
-                            }}>X
-                        </button>
-                        {getMessageIcon(messageId)}
-                    </p>
-                </div>
-            )}
+
 
             {!isEmployee && !showAddForm && (
                 <button className="btn" onClick={() => {
@@ -187,7 +179,7 @@ const StorageManager = ({ user, message, setMessage, messageId, setMessageId, no
                     setEditingId(null);
                     setEditingAmount(null);
                 }}>
-                    Добавить
+                    Зарегистрировать новую ТМЦ
                 </button>
             )}
 
@@ -206,21 +198,26 @@ const StorageManager = ({ user, message, setMessage, messageId, setMessageId, no
                     </select>
                     <input
                         type="text"
-                        className="input"
+                        inputMode="numeric"
                         value={equipment.amount}
                         onChange={e => {
-                            setEquipmentAmount(e.target.value)
+                            const val = e.target.value;
+                            if (val === '' || /^[1-9][0-9]*$/.test(val)) {
+                                setEquipmentAmount(val);
+                            }
                         }}
-                        inputMode="numeric"
                         placeholder="Количество"
                     />
-                    <button className="btn" onClick={addEquipment}>Добавить</button>
-                    <button className="btn" onClick={() => {
-                        setMessage('');
-                        setMessageId(null);
+                    {getButtonIcon(faEraser, "Отмена", () => {
+                        resetMessage(setMessage, setMessageId);
                         setShowAddForm(false);
-                    }}>Отмена</button>
+                    })}
+                    {getButtonIcon(faFloppyDisk,"Сохранить", addEquipment)}
                 </div>
+            )}
+
+            {message && Math.floor(messageId / 10) === 2 &&(
+                showMessage(message, messageId, setMessage, setMessageId)
             )}
 
             {equipments.length === 0 ? (
@@ -229,24 +226,30 @@ const StorageManager = ({ user, message, setMessage, messageId, setMessageId, no
                 <table className="table">
                     <thead>
                     <tr>
-                        <th>#</th>
-                        <th>Название</th>
-                        <th>Количество</th>
+                        <th>№</th>
+                        <th className="name">Название</th>
+                        <th className="amount">Количество</th>
                         {!isEmployee && <th colSpan="2">Действия</th>}
                     </tr>
                     </thead>
                     <tbody>
                     {equipments.map((e, index) => (
                         <tr key={e.id}>
-                            <td>{index + 1}</td>
-                            <td>{e.name}</td>
-                            <td>
+                            <td className="numbers">{index + 1}</td>
+                            <td className="name">{e.name}</td>
+                            <td className="amount">
                                 {editingId === e.id ? (
                                     <input
-                                        type="number"
+                                        type="text"
+                                        inputMode="numeric"
                                         className="input"
                                         value={editingAmount}
-                                        onChange={ev => setEditingAmount(ev.target.value)}
+                                        onChange={e => {
+                                            const val = e.target.value;
+                                            if (val === '' || /^[1-9][0-9]*$/.test(val)) {
+                                                setEditingAmount(val);
+                                            }
+                                        }}
                                         placeholder="Количество"
                                     />
                                 ) : (
@@ -256,26 +259,24 @@ const StorageManager = ({ user, message, setMessage, messageId, setMessageId, no
                             {!isEmployee &&
                                 <>
                                     <td>
-                                        {editingId === e.id ? (
-                                            <button className="btn" onClick={() =>
-                                                updateEquipment(e.id, editingAmount, e.name)}
-                                            >Сохранить</button>
-                                        ) : (
-                                            <button className="btn" onClick={() => {
+                                        {editingId === e.id ? ( getButtonIcon(faEraser,"Отмена", () => setEditingId(null))
+                                        ) : getButtonIcon(faPencil, "Изменить", () => {
                                                 setShowAddForm(false);
                                                 setMessage('');
                                                 setMessageId(null);
                                                 setEditingAmount(e.amount);
                                                 setEditingId(e.id);
-                                            }}>Изменить</button>
-                                        )}
+                                            })
+                                        }
                                     </td>
                                     <td>
                                         {editingId === e.id ? (
-                                            <button className="btn" onClick={() => setEditingId(null)}>Отмена</button>
-                                        ) : (
-                                            <button className="btn btn-danger" onClick={() => deleteEquipment(e.id, e.name)}>Удалить</button>
-                                        )}
+                                            getButtonIcon(faFloppyDisk, "Сохранить", () => {
+                                            if (e.amount !== editingAmount)
+                                            updateEquipment(e.id, editingAmount, e.name)
+                                            else
+                                            setEditingId(null);
+                                        })) : (getButtonIcon(faTrash, "Удалить", () => deleteEquipment(e.id, e.name)))}
                                     </td>
                                 </>}
                         </tr>

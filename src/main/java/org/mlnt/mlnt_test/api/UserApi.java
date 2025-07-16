@@ -12,9 +12,6 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Objects;
 
-//TODO не работает удалить все тестовые?
-//TODO разобраться со всеми .query
-
 @Service
 @RequiredArgsConstructor
 public class UserApi {

@@ -3,10 +3,14 @@ import axios from 'axios';
 import { getNomenclatures } from "./NomenclatureManager";
 axios.defaults.withCredentials = true;
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCircle, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
-import {getMessageIcon} from "../ReactEntry";
+import {
+    faCircle, faEraser,
+    faPaperPlane,
+    faTrash
+} from '@fortawesome/free-solid-svg-icons';
+import {getButtonIcon, resetMessage, showMessage} from "../ReactEntry";
 
-const RequestManager = ({ user, message, setMessage, messageId, setMessageId, nomenclatureChanded, setNomenclatureChanged, storageChanged, setStorageChanged, requestCreated, setRequestCreated }) => {
+const RequestManager = ({ user, message, setMessage, messageId, setMessageId, nomenclatureChanged, setNomenclatureChanged, storageChanged, setStorageChanged, requestCreated, setRequestCreated }) => {
     const [requests, setRequests] = useState([]);
     const [items, setItems] = useState([]);
     const [nomenclatures, setNomenclatures] = useState([]);
@@ -15,6 +19,12 @@ const RequestManager = ({ user, message, setMessage, messageId, setMessageId, no
         try {
             console.log("Получаю список заявок...");
             const response = await axios.get('http://localhost:8080/api/request');
+
+            if (requests === response.data) {
+                setMessage("Заявка исполнена");
+                setMessageId(33);
+            }
+
             setRequests(response.data);
         } catch (e) {
             console.error('Ошибка при загрузке заявок: ', e)
@@ -70,16 +80,6 @@ const RequestManager = ({ user, message, setMessage, messageId, setMessageId, no
         return false; // Дубликатов нет
     };
 
-    const deleteNotTest = async () => {
-        try {
-            await axios.delete('http://localhost:8080/api/request/test');
-        }
-        catch (e) {
-            setMessage(e?.response?.data || 'Ошибка при удалении');
-            setMessageId(31);
-        }
-    }
-
     const isFormValid = items.every(item => item.name && item.amount > 0);
 
     const setDate = (date) => {
@@ -89,17 +89,17 @@ const RequestManager = ({ user, message, setMessage, messageId, setMessageId, no
     const getStatusIcon = (status) => {
         let color;
         switch (status) {
-            case 'Принята':
-                color = 'orange';
+            case 'В работе':
+                color = 'orange'
                 break;
-            case 'Исполнена':
+            case 'Завершено':
                 color = 'green';
                 break;
             default:
-                color = 'red';
+                color = 'grey';
                 break;
         }
-        return <FontAwesomeIcon icon={faCircle} style={{ color: color }} />
+        return <FontAwesomeIcon icon={faCircle} style={{ color: color, cursor: "default" }} title={status} />
     }
 
     useEffect(() => {
@@ -109,7 +109,7 @@ const RequestManager = ({ user, message, setMessage, messageId, setMessageId, no
         };
         fetchNomenclatures();
         setNomenclatureChanged(false)
-    }, [nomenclatureChanded]);
+    }, [nomenclatureChanged]);
 
     useEffect(() => {
         getRequests();
@@ -129,11 +129,9 @@ const RequestManager = ({ user, message, setMessage, messageId, setMessageId, no
                 <button className="btn" disabled={!(user && user.id)} onClick={() => {
                         addItem();
                 }}>
-                    Создать заявку
+                    Зарегистрировать заявку
                 </button>
             ) : null}
-            <button className={"btn btn-danger"} onClick={(deleteNotTest)}>Удалить не тестовые</button>
-
             {items.length > 0 && (
                 <div className="request-form">
                     {items.map((item, index) => (
@@ -162,87 +160,81 @@ const RequestManager = ({ user, message, setMessage, messageId, setMessageId, no
                                 required
                                 onChange={e => handleChange(index, 'amount', e.target.value)}
                             />
-                            <button className="btn btn-danger" onClick={() =>
-                                setItems(prev => prev.filter((_, i) => i !== index))
-                            }>
-                                Удалить
-                            </button>
+                            {getButtonIcon(faTrash, "Удалить", () => {
+                                if (!window.confirm(`Вы уверены, что хотите удалить эту строку из заявки?`)) {
+                                    return;
+                                }
+                                setItems(prev => prev.filter((_, i) => i !== index));
+                                resetMessage(setMessage, setMessageId);})}
                         </div>
                     ))}
-                    <div className="form-actions">
+                    <div className="form-row">
                         <button className="btn" onClick={addItem}>Добавить ТМЦ в заявку</button>
-                        <button className="btn btn-primary" onClick={addRequest}>Отправить заявку</button>
-                        <button className="btn" onClick={() => setItems([])}>Отмена</button>
+                        {getButtonIcon(faEraser, "Отмена", () => setItems([]))}
+                        {getButtonIcon(faPaperPlane, "Отправить заявку", addRequest)}
                     </div>
                 </div>
             )}
 
-            {message && Math.floor(messageId / 10) === 3 &&(
-                <div className="message">
-                    <p>{message} <button className="btn btn-danger" onClick={() => {
-                        setMessage('')
-                        setMessageId(null);
-                    }}>X</button>{getMessageIcon(messageId)}
-                    </p>
-                </div>
+            {message && Math.floor(messageId / 10) === 3 && (
+                showMessage(message, messageId, setMessage, setMessageId)
             )}
 
             {user ? (
-                    <>
-                    {requests.length === 0 ? (
-                        <p>Список заявок пуст</p>
-                    ) : (
-                        <table className="table">
-                            <thead>
-                            <tr>
-                                <th rowSpan="2">№ заявки</th>
-                                <th colSpan="5">Оборудование</th>
-                                <th rowSpan="2">Создана</th>
-                                <th rowSpan="2">Закрыта</th>
-                                <th rowSpan="2">Статус</th>
-                            </tr>
-                            <tr>
-                                <th>Номер</th>
-                                <th>Название</th>
-                                <th>Количество</th>
-                                {/*<th>Создана</th>*/}
-                                <th>Закрыта</th>
-                                <th>Статус</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {requests.map((req, i) => (
-
-                                req.requestEquipments?.map((eq, idx) => (
-                                    <tr key={eq.id}>
-                                        {idx === 0 && (
-                                            <>
-                                                <td rowSpan={req.requestEquipments.length}>{i + 1}</td>
-                                            </>
-                                        )}
-                                        <td>{idx + 1}</td>
-                                        <td>{eq.name}</td>
-                                        <td>{eq.amount}</td>
-                                        {/*<td>{eq.createdAt ? new Date(eq.createdAt).toLocaleString() : '—'}</td>*/}
-                                        <td>{setDate(eq.closedAt)}</td>
-                                        <td>{getStatusIcon(eq.statusName)}</td>
-                                        {idx === 0 && (
-                                            <>
-                                                <td rowSpan={req.requestEquipments.length}>
-                                                    {setDate(req.createdAt)}</td>
-                                                <td rowSpan={req.requestEquipments.length}>
-                                                    {setDate(req.closedAt)}</td>
-                                                <td rowSpan={req.requestEquipments.length}>{getStatusIcon(req.statusName)}</td>
-                                            </>
-                                        )}
-                                    </tr>
-                                ))
-                            ))}
-                            </tbody>
-                        </table>
-                    )}
-                    </>)
-                : <p>Вы не авторизованы</p>
+                <>
+                {requests.length === 0 ? (
+                    <p>Список заявок пуст</p>
+                ) : (
+                    <table className="table">
+                        <thead>
+                        <tr>
+                            <th rowSpan="2">№ заявки</th>
+                            <th colSpan="5">Оборудование</th>
+                            <th rowSpan="2">Создана</th>
+                            <th rowSpan="2">Закрыта</th>
+                            <th rowSpan="2">Статус</th>
+                        </tr>
+                        <tr>
+                            <th>Номер</th>
+                            <th className="name">Название</th>
+                            <th>Количество</th>
+                            {/*<th>Создана</th>*/}
+                            <th>Закрыта</th>
+                            <th>Статус</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {requests.map((req, i) => (
+                            req.requestEquipments?.map((eq, idx) => (
+                                <tr className="request-row" key={eq.id} style={{ backgroundColor: i % 2 === 1 ? '#f3f3f3' : '#ffffff'}}>
+                                    {idx === 0 && (
+                                        <>
+                                            <td className="numbers" rowSpan={req.requestEquipments.length}>{i + 1}</td>
+                                        </>
+                                    )}
+                                    <td className="numbers">{idx + 1}</td>
+                                    <td className="name">{eq.name}</td>
+                                    <td className="amount">{eq.amount}</td>
+                                    {/*<td>{eq.createdAt ? new Date(eq.createdAt).toLocaleString() : '—'}</td>*/}
+                                    <td>{setDate(eq.closedAt)}</td>
+                                    <td>{getStatusIcon(eq.statusName)}</td>
+                                    {idx === 0 && (
+                                        <>
+                                            <td rowSpan={req.requestEquipments.length}>
+                                                {setDate(req.createdAt)}</td>
+                                            <td rowSpan={req.requestEquipments.length}>
+                                                {setDate(req.closedAt)}</td>
+                                            <td rowSpan={req.requestEquipments.length}>{getStatusIcon(req.statusName)}</td>
+                                        </>
+                                    )}
+                                </tr>
+                            ))
+                        ))}
+                        </tbody>
+                    </table>
+                )}
+                </>)
+            : <p>Вы не авторизованы</p>
             }
         </div>
     );

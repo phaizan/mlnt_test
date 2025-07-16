@@ -1,16 +1,33 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import {getButtonIcon, resetMessage, showMessage} from "../ReactEntry";
+
+import { library } from '@fortawesome/fontawesome-svg-core';
+import { fas } from '@fortawesome/free-solid-svg-icons';
+import { far } from '@fortawesome/free-regular-svg-icons';
+library.add(fas, far);
+
+
+
+import {
+    faEraser,
+    faFloppyDisk,
+    faPencil, faTrash
+} from "@fortawesome/free-solid-svg-icons";
+
 axios.defaults.withCredentials = true;
 
 const NomenclatureManager = ({ message, setMessage, messageId, setMessageId, setNomenclatureChanged }) => {
     const [nomenclatures, setNomenclatures] = useState([]);
+    const [showAddForm, setShowAddForm] = useState(false);
     const [newName, setNewName] = useState('');
     const [editingId, setEditingId] = useState(null);
     const [editName, setEditName] = useState('');
 
     const addNomenclature = async () => {
-        if (!newName.trim() || newName === '') {
+        if (!newName.trim()) {
             setMessage("Введите название номенклатуры");
+            setMessageId(13);
             return;
         }
         try {
@@ -23,6 +40,8 @@ const NomenclatureManager = ({ message, setMessage, messageId, setMessageId, set
             });
             setNewName('');
             setMessage(`Номенклатура "${newNomenclature.name}" добавлена`)
+            setMessageId(13);
+            setShowAddForm(false);
             setNomenclatureChanged(true);
         }
         catch (e) {
@@ -32,9 +51,8 @@ const NomenclatureManager = ({ message, setMessage, messageId, setMessageId, set
             else {
                 setMessage(e?.response?.data || 'Ошибка при изменении');
             }
+            setMessageId(11);
         }
-        setMessageId(1);
-
     };
 
     const updateNomenclature = async (id, name) => {
@@ -45,34 +63,34 @@ const NomenclatureManager = ({ message, setMessage, messageId, setMessageId, set
             const updNomenclature = response.data;
             setNomenclatures(prev => prev.map (n => n.id === id ? updNomenclature : n));
             setMessage(`"${updNomenclature.name}" успешно обновлено`);
-            setMessageId(1);
+            setMessageId(13);
             setEditingId(null);
             setNewName('');
             setNomenclatureChanged(true);
         }
         catch (e) {
-            if (e.response.status === 409) {
+            if (e.response.status === 409)
                 setMessage(e?.response?.data);
-                setMessageId(1);
-            }
-            else {
+            else
                 setMessage(e?.response?.data || 'Ошибка при изменении');
-                setMessageId(1);
-            }
+            setMessageId(11);
         }
     }
 
     const deleteNomenclature = async (id, name) => {
+        if (!window.confirm(`Вы уверены, что хотите удалить "${name}"?`)) {
+            return;
+        }
         try {
             await axios.delete(`http://localhost:8080/api/nomenclature/${id}`);
             setNomenclatures(prev => prev.filter(eq => eq.id !== id));
             setMessage(`Номенклатура "${name}" удалена`);
             setNomenclatureChanged(true);
-            setMessageId(1);
+            setMessageId(13);
         }
         catch (e) {
             setMessage(e?.response?.data || 'Ошибка при удалении');
-            setMessageId(1);
+            setMessageId(11);
         }
     }
 
@@ -89,72 +107,86 @@ const NomenclatureManager = ({ message, setMessage, messageId, setMessageId, set
             <h2>Номенклатура ТМЦ</h2>
 
 
-            <div className="form-row">
-                <input
-                    type="text"
-                    value={newName}
-                    onChange={e => setNewName(e.target.value)}
-                    placeholder="Название номенклатуры"
-                />
-                <button className="btn" onClick={addNomenclature}>Добавить</button>
-            </div>
+            { showAddForm ? (
+                    <div className="form-row">
+                        <input
+                            type="text"
+                            value={newName}
+                            onChange={e => setNewName(e.target.value)}
+                            placeholder="Название номенклатуры"
+                        />
 
-            {message && messageId === 1 && (
-                <div className="message">
-                    <p>{message} <button className="btn btn-danger" onClick={() => {
-                        setMessage('')
-                        setMessageId(null);
-                    }}>X</button></p>
-                </div>
+                        <span className="fa-stack fa-lg">
+                            <i className="fa fa-square-o fa-stack-2x"></i>
+                            <i className="fa fa-twitter fa-stack-1x"></i>
+                        </span>
+
+                        {
+                            getButtonIcon(faEraser, "Отмена", () => setShowAddForm(false))
+                        }
+
+                        {
+                            getButtonIcon(faFloppyDisk, "Сохранить", addNomenclature)
+                        }
+                    </div>) :
+                (<button className="btn" onClick={() => {
+                    setEditingId(null);
+                    setShowAddForm(true)
+                    resetMessage(setMessage, setMessageId);
+                }}>Зарегистрировать новую номенклатуру</button>)
+            }
+            {message && Math.floor(messageId / 10) === 1 &&(
+                showMessage(message, messageId, setMessage, setMessageId)
             )}
-
             {
                 nomenclatures.length === 0 ? (
                     <p>Список номенклатур пустой</p>
                 ) : (
                     <table className="table">
-                        {
-                            nomenclatures.map((n, index) => (
-                                <tr key={n.id}>
-                                    <td>{index + 1}</td>
-                                    <td>
-                                        {
-                                            editingId === n.id
-                                                ? <input
-                                                    type="text"
-                                                    value={editName}
-                                                    onChange={e => setEditName(e.target.value)}
-                                                    placeholder={"Название"}
-                                                />
-                                                : n.name
-                                        }
-                                    </td>
-                                    <td>
-                                        {
-                                            editingId === n.id
-                                                ? <button className="btn" onClick={() => updateNomenclature(n.id, editName)}>
-                                                    Сохранить
-                                                </button>
-                                                : <button className="btn" onClick={() => {
-                                                    setEditingId(n.id)
-                                                    setEditName(n.name)
-                                                }}>
-                                                    Изменить
-                                                </button>
-                                        }
-                                    </td>
-                                    <td>
-                                        {
-                                            editingId === n.id
-                                                ? <button className="btn" onClick={() => setEditingId(null)}>
-                                                    Отмена
-                                                </button>
-                                                : <button className="btn btn-danger" onClick={() => deleteNomenclature(n.id, n.name)}>Удалить</button>
-                                        }
-                                    </td>
-                                </tr>
-                            ))
-                        }
+                        <thead>
+                            <tr>
+                                <th>№</th>
+                                <th className="name">Название</th>
+                                <th colSpan="2">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        { nomenclatures.map((n, index) => (
+                            <tr key={n.id}>
+                                <td className="numbers">{index + 1}</td>
+                                <td className="name">
+                                    {
+                                        editingId === n.id
+                                            ? <input
+                                                type="text"
+                                                value={editName}
+                                                onChange={e => setEditName(e.target.value)}
+                                                placeholder={"Название"}
+                                            />
+                                            : n.name
+                                    }
+                                </td>
+                                <td>
+                                    {
+                                        editingId === n.id
+                                            ? getButtonIcon(faEraser, "Отмена", () => setEditingId(null))
+                                            : getButtonIcon(faPencil, "Изменить", () => {
+                                                setShowAddForm(false);
+                                                setEditingId(n.id)
+                                                setEditName(n.name)
+                                            })
+                                    }
+                                </td>
+                                <td>
+                                    {
+                                        editingId === n.id
+                                            ? getButtonIcon(faFloppyDisk, "Сохранить", () => updateNomenclature(n.id, editName))
+                                            : getButtonIcon(faTrash, "Удалить", () => deleteNomenclature(n.id, n.name))
+                                    }
+                                </td>
+                            </tr>
+                        ))}
+                        </tbody>
                     </table>
                 )
             }

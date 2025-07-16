@@ -14,7 +14,7 @@ public class Equipment {
      */
     private int id;
     /**
-     * Уникальный индетификатор номенклатуры
+     * Уникальный идентификатор номенклатуры
      */
     private int nomenclatureId;
     /**

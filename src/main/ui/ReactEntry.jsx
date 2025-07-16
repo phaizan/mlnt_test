@@ -8,7 +8,7 @@ import Auth from "./pages/Auth";
 import Employee from "./pages/Employee";
 import Storekeeper from "./pages/Storekeeper";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
-import {faInfoCircle} from "@fortawesome/free-solid-svg-icons";
+import {faInfoCircle, faSignOut, faTimes} from "@fortawesome/free-solid-svg-icons";
 
 
 axios.defaults.withCredentials = true;
@@ -53,107 +53,78 @@ const ReactEntry = () => {
     return (
         <div className="body">
             {hello && (
-                <div className="message">
-                    <p>{hello} <button className="btn btn-danger" onClick={logout}>Выйти</button></p>
+                <div className="hello">
+                    <span>{hello}</span>
+                    <FontAwesomeIcon icon={faSignOut} className="danger" onClick={logout} title="Выйти"/>
                 </div>
             )}
                 <Routes>
                     <Route path="/" element={<Auth user={user} setUser={setUser}
-                                                   message={message} setMessage={setMessage}
+                                                   message={message} setMessage={setMessage} messageId={messageId} setMessageId={setMessageId}
                                                    setHello={setHello}/>}/>
                     <Route path="/employee" element={<Employee user={user}
                                                                message={message} setMessage={setMessage} messageId={messageId} setMessageId={setMessageId}
-                                                               nomenclatureChanded={nomenclatureChanged} setNomenclatureChanged={setNomenclatureChanged}
+                                                               nomenclatureChanged={nomenclatureChanged} setNomenclatureChanged={setNomenclatureChanged}
                                                                storageChanged={storageChanged} setStorageChanged={setStorageChanged}
                                                                requestCreated={requestCreated} setRequestCreated={setRequestCreated}/>}/>
 
                     <Route path="/storekeeper" element={<Storekeeper user={user}
                                                                      message={message} setMessage={setMessage} messageId={messageId} setMessageId={setMessageId}
-                                                                     nomenclatureChanded={nomenclatureChanged} setNomenclatureChanged={setNomenclatureChanged}
+                                                                     nomenclatureChanged={nomenclatureChanged} setNomenclatureChanged={setNomenclatureChanged}
                                                                      storageChanged={storageChanged} setStorageChanged={setStorageChanged}
                                                                      requestCreated={requestCreated} setRequestCreated={setRequestCreated}/>}/>
                 </Routes>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-            {/*{user && (
-                <div >
-                    <p>Привет, {user.name} <button className="btn btn-danger" onClick={logout}>Выйти</button></p>
-
-                </div>
-            )}
-
-                <nav>
-                    <ul>
-                        <li><Link to="/">Главная</Link></li>
-                        <li><Link to="/UserManager">Авторизация</Link></li>
-                        {
-                            user && (
-                                <>
-                                    <li><Link to="/StorageManager">Список остатков</Link></li>
-                                    <li><Link to="/RequestManager">Список моих заявок</Link></li>
-                                    {
-                                        (user.roleId !== 1) && (
-                                            <>
-                                                <li><Link to="/StorageManager">Список остатков</Link></li>
-                                                <li><Link to="/NomenclatureManager">Управление номенклатурой</Link></li>
-                                                <li><Link to="/RequestManager">Управление заявками</Link></li>
-                                            </>
-                                        )
-                                    }
-                                </>)
-                        }
-                        <li><Link to="/">Главная</Link></li>
-                        <li><Link to="/UserManager">Авторизация</Link></li>
-                        <li><Link to="/NomenclatureManager">Управление номенклатурой</Link></li>
-                        <li><Link to="/StorageManager">Управление остатками</Link></li>
-                        <li><Link to="/RequestManager">Управление заявками</Link></li>
-                    </ul>
-                </nav>
-
-
-
-                <Routes>
-                    <Route path="/"/>
-                    <Route path="/UserManager" element={<UserManager message={message} setMessage={setMessage} user={user} setUser={setUser}/>} />
-                    <Route path="/NomenclatureManager" element={<NomenclatureManager setMessage={setMessage}/>} />
-                    <Route path="/StorageManager" element={<StorageManager setMessage={setMessage}/>} />
-                    <Route path="/RequestManager" element={<RequestManager setMessage={setMessage}/>} />
-                </Routes>*/}
         </div>
-
     );
 };
 
-export  const getMessageIcon = (messageId) => {
+export const getMessageIcon = (messageId) => {
     let color;
-
+    let title;
     switch (messageId % 10) {
         case 1:
             color = 'red';
+            title = 'Критически важное';
             break;
         case 2:
             color = 'orange'
+            title = 'Обратите внимание';
             break;
         case 3:
             color = 'blue'
+            title = 'Информационный';
             break;
     }
-    return <FontAwesomeIcon icon={faInfoCircle} style={{ color: color }} />
+    return <FontAwesomeIcon icon={faInfoCircle} style={{ color: color, fontSize: "20px" }} title={title} />
+}
+
+export const getButtonIcon = (icon, title, func) => {
+    let className = "icon-foreground"
+    if (title === "Удалить")
+        className += " danger";
+
+    return (
+        <div className="icon-stack action">
+            <FontAwesomeIcon icon={['far', 'square']} className="icon-background" />
+            <FontAwesomeIcon icon={icon} className={className} title={title} onClick={func}/>
+        </div>
+    )
+
+}
+
+export const resetMessage = (setMessage, setMessageId) => {
+    setMessage('');
+    setMessageId(null);
+}
+
+export const showMessage = (message, messageId, setMessage, setMessageId) => {
+    return (
+        <div className="message">
+            <span>{getMessageIcon(messageId)}</span>
+            <span>{message}</span>
+            <FontAwesomeIcon icon={faTimes} className="danger" onClick={() => {resetMessage(setMessage, setMessageId)}} title="Закрыть"/>
+        </div>
+    )
 }
 
 

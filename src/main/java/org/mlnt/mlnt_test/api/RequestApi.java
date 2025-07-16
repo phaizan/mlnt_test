@@ -15,9 +15,6 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
-
-//TODO посмотреть предупреждения
-
 @Service
 @RequiredArgsConstructor
 public class RequestApi {
@@ -87,6 +84,8 @@ public class RequestApi {
                 bort_status.name = 'Статус позиции в заявке' AND
                 boo_user.type_id = 1""";
 
+        if (userRoleId != 3)
+            sql += " AND rrs_request.name = 'В работе' ";
         if (userRoleId == 1) {
            sql += " AND ou.id = " + userId;
         }
@@ -146,12 +145,14 @@ public class RequestApi {
                 jdbcTemplate.update(sqlInsertBndRequestEquipment_RubricatorName, requestEquipment.getId(), requestEquipment.getNomenclatureId());
             }
 
-            List<Equipment> storage = equipmentApi.getEquipments();
 
-            for (Equipment eq : storage) {
-                processRequestsOnEquipmentUpdate(eq);
+            for (RequestEquipment rE : requestEquipments) {
+                Equipment equipment = equipmentApi.getEquipmentFromStorage(rE.getNomenclatureId());
+                if (equipment != null) {
+                    equipment.setName(rE.getName());
+                    processRequestsOnEquipmentUpdate(equipment);
+                }
             }
-
             return request;
         } catch (DataAccessException e) {
             throw new IllegalStateException("Ошибка при доступе к базе данных" + e);
@@ -192,9 +193,8 @@ public class RequestApi {
                 re.setClosedAt(LocalDateTime.now());
                 updatedRequestEquipments.add(re);
             }
-            else {
+            else
                 break;
-            }
         }
 
         if(!updatedRequestEquipments.isEmpty()) {

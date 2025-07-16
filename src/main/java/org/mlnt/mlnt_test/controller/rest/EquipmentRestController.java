@@ -12,8 +12,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.NoSuchElementException;
 import io.swagger.annotations.Api;
 
-//TODO сделать констатнты final
-
 @Api ("Контроллер для работы с ТМЦ на складе и номенклатурами")
 @RestController
 @RequestMapping("/api")

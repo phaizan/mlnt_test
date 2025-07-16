@@ -1,7 +1,5 @@
 package org.mlnt.mlnt_test.entity;
 
-//TODO документацию
-
 import lombok.Data;
 import lombok.experimental.Accessors;
 
